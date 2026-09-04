@@ -14,7 +14,10 @@ services:
     name: school-management-system
     runtime: node
     plan: free
-    buildCommand: npm run install:all && npm --prefix client run build
+    # NODE_ENV=production makes npm skip devDependencies, but the client build
+    # needs vite (a devDependency), so force it in for that install. The server
+    # runs on production deps only.
+    buildCommand: npm --prefix client install --include=dev && npm --prefix client run build && npm --prefix server install
     startCommand: npm --prefix server start
     healthCheckPath: /api/health
     envVars:
