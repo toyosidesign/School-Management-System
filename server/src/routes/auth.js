@@ -103,11 +103,12 @@ r.post('/login-code', (req, res) => {
  * This issues a fresh code for the named pupil and redeems it immediately, so
  * the real flow still runs end to end.
  *
- * Hard-disabled outside development, and again when DEV_PUPIL_LOGIN=0. It is
- * refused before it looks anything up, so production cannot be talked into it.
+ * Disabled in production, except on the demo deployment (SEED_DEMO=true, whose
+ * pupils are synthetic), and always when DEV_PUPIL_LOGIN=0. It is refused before
+ * it looks anything up, so a real production host cannot be talked into it.
  */
 r.post('/dev-login', (req, res) => {
-  if (process.env.NODE_ENV === 'production' || process.env.DEV_PUPIL_LOGIN === '0') {
+  if ((process.env.NODE_ENV === 'production' && process.env.SEED_DEMO !== 'true') || process.env.DEV_PUPIL_LOGIN === '0') {
     return res.status(404).json({ error: 'Endpoint not found' });
   }
 
@@ -135,7 +136,7 @@ r.post('/dev-login', (req, res) => {
 
 /** Which pupils the development sign-in can be used for. */
 r.get('/dev-pupils', (req, res) => {
-  if (process.env.NODE_ENV === 'production' || process.env.DEV_PUPIL_LOGIN === '0') {
+  if ((process.env.NODE_ENV === 'production' && process.env.SEED_DEMO !== 'true') || process.env.DEV_PUPIL_LOGIN === '0') {
     return res.status(404).json({ error: 'Endpoint not found' });
   }
   res.json(db.prepare(

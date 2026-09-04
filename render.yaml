@@ -28,3 +28,7 @@ services:
       # Signed per deploy; every session is invalidated if it rotates.
       - key: JWT_SECRET
         generateValue: true
+      # Seed a full demo school into the empty database on boot, and open the
+      # one-click pupil sign-in, so the root URL is a live, explorable school.
+      - key: SEED_DEMO
+        value: "true"
