@@ -1,0 +1,30 @@
+{
+  "name": "sms-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "seed": "node src/db/seed.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "test:watch": "node --test --watch \"test/*.test.js\"",
+    "init:secrets": "node src/scripts/init-secrets.js",
+    "backup": "node src/scripts/backup.js",
+    "restore": "node src/scripts/restore.js",
+    "create:admin": "node src/scripts/create-admin.js",
+    "init:school": "node src/scripts/init-school.js",
+    "reset:password": "node src/scripts/reset-password.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "nanoid": "^5.0.9"
+  }
+}

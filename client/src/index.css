@@ -1,0 +1,283 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* OpenDyslexic — served from a CDN, with a wide-spaced fallback stack so the
+   toggle still visibly changes the typeface if the font cannot be fetched. */
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/opendyslexic@5.0.19/files/opendyslexic-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/opendyslexic@5.0.19/files/opendyslexic-latin-700-normal.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --app-font: 'Inter';
+    --heading-font: 'Inter';
+
+    /* Default brand palette (blue). Overwritten at runtime by BrandingContext
+       with a scale derived from the school's own colour. */
+    --brand-50: 239 246 255;  --brand-100: 219 234 254; --brand-200: 191 219 254;
+    --brand-300: 147 197 253; --brand-400: 96 165 250;  --brand-500: 59 130 246;
+    --brand-600: 37 99 235;   --brand-700: 29 78 216;   --brand-800: 30 64 175;
+    --brand-900: 30 58 138;
+    --accent-400: 167 139 250; --accent-500: 139 92 246;
+    --accent-600: 124 58 237;  --accent-700: 109 40 217;
+    --ink: #0b1220;
+    --ink-soft: #5b6577;
+    --ink-faint: #98a1b3;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-sunken: #f4f6fa;
+    --line: #e8ebf1;
+    --page: #f7f8fb;
+    --tap: 40px;
+    --letter-spacing: 0;
+    --line-height: 1.6;
+  }
+
+  /* ── Typography presets (PRD §3.1 dyslexia row) ── */
+  html[data-font='opendyslexic'] {
+    --app-font: 'OpenDyslexic', 'Comic Sans MS', 'Trebuchet MS';
+    --letter-spacing: 0.02em;
+    --line-height: 1.85;
+  }
+  html[data-font='lexend'] {
+    --app-font: 'Lexend';
+    --letter-spacing: 0.01em;
+    --line-height: 1.75;
+  }
+
+  /* ── Colour overlays & contrast (PRD §8.3) ── */
+  html[data-tint='blue']   { --page: #d0e8f2; --surface: #f2fbff; --surface-raised: #ffffff; --surface-sunken: #e2f1f8; --line: #b9dcea; }
+  html[data-tint='yellow'] { --page: #fdf6d8; --surface: #fffdf2; --surface-raised: #ffffff; --surface-sunken: #f8eec9; --line: #e8dca8; }
+  html[data-tint='dark'] {
+    --page: #0b1220; --surface: #131c2e; --surface-raised: #1a2438; --surface-sunken: #0f172a;
+    --line: #2a3854; --ink: #e8eefc; --ink-soft: #a3b0cc; --ink-faint: #6b7a99;
+    color-scheme: dark;
+  }
+
+  /* ── Motor / fine control: high target click areas ≥ 48px ── */
+  html[data-targets='on'] { --tap: 48px; }
+  html[data-targets='on'] button,
+  html[data-targets='on'] a[role='button'],
+  html[data-targets='on'] [data-tap],
+  html[data-targets='on'] input[type='checkbox'],
+  html[data-targets='on'] input[type='radio'],
+  html[data-targets='on'] select {
+    min-height: var(--tap);
+    min-width: var(--tap);
+  }
+  html[data-targets='on'] nav a { min-height: var(--tap); }
+
+  /* ── Autism Spectrum: low-sensory mode mutes motion ── */
+  html[data-sensory='low'] *,
+  html[data-sensory='low'] *::before,
+  html[data-sensory='low'] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  html[data-sensory='low'] .decorative-gradient { background-image: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+
+  /* ── ADHD: Focus Mode strips secondary UI ── */
+  html[data-focus='on'] [data-focus-hide] { display: none !important; }
+
+  html { font-size: calc(16px * var(--text-scale, 1)); }
+
+  body {
+    @apply bg-[color:var(--page)] text-ink antialiased;
+    max-width: 100%;
+    font-family: var(--app-font), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: var(--letter-spacing);
+    line-height: var(--line-height);
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+  }
+
+  /* Visible focus ring for full keyboard navigation (WCAG 2.1 AA, PRD §3.1). */
+  :focus-visible {
+    outline: 3px solid rgb(var(--brand-600));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  html[data-tint='dark'] :focus-visible { outline-color: #7dd3fc; }
+
+  ::selection { background: #bfdbfe; color: #0f172a; }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-[color:var(--surface-raised)];
+  }
+  /*
+   * Sticky headers and the mobile tab bar.
+   * Tailwind's opacity modifier cannot be applied to an arbitrary CSS variable
+   * colour: `bg-[color:var(--surface-raised)]/95` compiles to nothing at all,
+   * leaving the bar fully transparent and the page scrolling through it. The
+   * translucency is therefore expressed here, with a solid fallback first.
+   */
+  .surface-bar {
+    background-color: var(--surface-raised);
+  }
+  @supports (background-color: color-mix(in srgb, white 50%, transparent)) {
+    .surface-bar {
+      background-color: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+      -webkit-backdrop-filter: blur(12px) saturate(1.4);
+      backdrop-filter: blur(12px) saturate(1.4);
+    }
+  }
+  /* Low-sensory mode: no see-through layering. */
+  html[data-sensory='low'] .surface-bar {
+    background-color: var(--surface-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* Stat tiles: a large number is the point, so the label sits small above it. */
+  .stat-tile {
+    @apply card px-5 py-5;
+  }
+  .stat-label {
+    @apply text-[13px] font-medium text-ink-soft;
+  }
+  .stat-value {
+    @apply mt-1.5 font-display text-[2rem] font-bold leading-none tracking-tight text-ink sm:text-[2.4rem];
+  }
+  .stat-caption {
+    @apply mt-2 text-[13px] text-ink-faint;
+  }
+  /* Sidebar grouping label, as in the reference. */
+  .nav-heading {
+    @apply px-3 pb-2 pt-5 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-faint;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold
+           transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    min-height: var(--tap);
+  }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800; }
+  .btn-ghost   { @apply btn border border-line bg-[color:var(--surface)] text-ink hover:bg-[color:var(--surface-sunken)]; }
+  .btn-subtle  { @apply btn bg-[color:var(--surface-sunken)] text-ink-soft hover:text-ink; }
+  .btn-danger  { @apply btn bg-red-600 text-white hover:bg-red-700; }
+  /* Compact variant. Padding shrinks, the tap target set by .btn does not. */
+  .btn-sm      { @apply gap-1.5 px-3.5 py-1.5 text-xs; }
+  .input {
+    @apply w-full rounded-xl border border-line bg-[color:var(--surface)] px-4 py-2.5 text-sm text-ink
+           placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25;
+    min-height: var(--tap);
+  }
+
+  /*
+   * The browser draws a select's arrow hard against the right border, ignoring
+   * the field's padding. Replacing it with our own chevron puts it on the same
+   * inset as the text, and makes it match the chevrons used everywhere else.
+   */
+  select.input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 2.75rem;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6577' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1.05rem;
+  }
+  html[data-tint='dark'] select.input {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3b0cc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  select.input::-ms-expand { display: none; }
+
+  /* The native date and time pickers sit inside the padding box, so they need
+     room of their own rather than butting up against the border. */
+  .input[type='date'],
+  .input[type='time'],
+  .input[type='datetime-local'] {
+    padding-right: 0.75rem;
+  }
+  .input[type='date']::-webkit-calendar-picker-indicator,
+  .input[type='time']::-webkit-calendar-picker-indicator,
+  .input[type='datetime-local']::-webkit-calendar-picker-indicator {
+    margin-left: 0.5rem;
+    opacity: 0.55;
+    cursor: pointer;
+  }
+  .input[type='date']:hover::-webkit-calendar-picker-indicator,
+  .input[type='time']:hover::-webkit-calendar-picker-indicator,
+  .input[type='datetime-local']:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
+  }
+  .label { @apply mb-1.5 block text-sm font-medium text-ink-soft; }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+
+  /*
+   * Badge tones. A 10% wash over the page reads as almost nothing, and the
+   * `dark:` variants these used before never fired: this app themes with
+   * data-tint, not Tailwind's dark class. Solid tints, with an explicit dark
+   * pairing, so every badge clears WCAG AA at 12px.
+   */
+  /* Callout panels. A /60 wash over the page ground reads muddy; these are
+     solid tints with a matching border, and an explicit dark pairing. */
+  .panel-amber  { @apply border-amber-200 bg-amber-50; }
+  .panel-green  { @apply border-emerald-200 bg-emerald-50; }
+  .panel-red    { @apply border-red-200 bg-red-50; }
+  .panel-violet { @apply border-violet-200 bg-violet-50; }
+  .panel-brand  { @apply border-brand-200 bg-brand-50; }
+
+  html[data-tint='dark'] .panel-amber  { @apply border-amber-700 bg-amber-950; }
+  html[data-tint='dark'] .panel-green  { @apply border-emerald-700 bg-emerald-950; }
+  html[data-tint='dark'] .panel-red    { @apply border-red-700 bg-red-950; }
+  html[data-tint='dark'] .panel-violet { @apply border-violet-700 bg-violet-950; }
+  html[data-tint='dark'] .panel-brand  { @apply border-brand-700 bg-brand-900; }
+
+  .chip-slate  { @apply bg-slate-200 text-slate-800; }
+  .chip-brand  { @apply bg-brand-100 text-brand-800; }
+  .chip-green  { @apply bg-emerald-100 text-emerald-800; }
+  .chip-amber  { @apply bg-amber-100 text-amber-900; }
+  .chip-red    { @apply bg-red-100 text-red-800; }
+  .chip-violet { @apply bg-violet-100 text-violet-800; }
+
+  html[data-tint='dark'] .chip-slate  { @apply bg-slate-700 text-slate-100; }
+  html[data-tint='dark'] .chip-brand  { @apply bg-brand-800 text-brand-100; }
+  html[data-tint='dark'] .chip-green  { @apply bg-emerald-800 text-emerald-100; }
+  html[data-tint='dark'] .chip-amber  { @apply bg-amber-800 text-amber-100; }
+  html[data-tint='dark'] .chip-red    { @apply bg-red-800 text-red-100; }
+  html[data-tint='dark'] .chip-violet { @apply bg-violet-800 text-violet-100; }
+  .skeleton { @apply animate-pulse rounded-xl bg-[color:var(--surface-sunken)]; }
+
+  /* Screen-reader-only, but focusable (skip links). */
+  .sr-only-focusable {
+    @apply absolute left-3 top-3 z-[100] -translate-y-24 rounded-lg bg-brand-600 px-4 py-2 text-white
+           transition-transform focus:translate-y-0;
+  }
+}
+
+/* Bionic reading: first half of each word is bolded to anchor the eye. */
+.bionic b { font-weight: 700; }
+
+/* Text-to-speech word highlighting. */
+.tts-active { background: #fde68a; border-radius: 4px; box-shadow: 0 0 0 2px #fde68a; }
+html[data-tint='dark'] .tts-active { background: #854d0e; box-shadow: 0 0 0 2px #854d0e; }
+
+/* Hide scrollbars on the horizontal chip rails without losing scrollability. */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Safe-area padding for the mobile bottom nav on notched devices. */
+.pb-safe { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }

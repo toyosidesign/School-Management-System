@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+server/data/*.db
+server/data/*.db-journal
+# Per-school databases and their write-ahead logs never belong in git.
+server/data/schools/
+*-wal
+*-shm
+*.restoring-*
+# Database backups are runtime data, not source.
+server/backups/
+server/uploads/*
+!server/uploads/.gitkeep
+# Runtime uploads are per deployment; bundled artwork lives in client/src/assets
+.env
+.DS_Store
