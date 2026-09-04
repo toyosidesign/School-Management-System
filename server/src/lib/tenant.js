@@ -41,6 +41,13 @@ export function schoolFromRequest(req) {
   const host = (req.hostname || '').toLowerCase();
   if (!host || BARE.has(host) || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
 
+  // The deployment's own address is not a school. On a platform such as Render
+  // the app answers at app.onrender.com, which would otherwise read as a school
+  // named "app"; naming that host here keeps the deployment bare, so setup runs
+  // on it and schools are reached with ?school= until a wildcard domain exists.
+  const root = (process.env.APP_HOST || process.env.RENDER_EXTERNAL_HOSTNAME || '').toLowerCase();
+  if (root && (host === root || host === `www.${root}`)) return null;
+
   const parts = host.split('.');
   // A bare domain (example.com) has no school in it; a subdomain of localhost
   // (northgate.localhost) does, which is what makes local development real.

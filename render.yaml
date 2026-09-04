@@ -1,0 +1,27 @@
+# Render blueprint: one web service runs the whole app.
+#
+# The Express server serves the built React client (see createApp's serveClient)
+# and the client calls /api on the same origin, so there is nothing else to
+# host. On Render's own *.onrender.com address there are no per-school
+# subdomains, so a school is reached at  https://<app>.onrender.com/?school=<slug> .
+#
+# Free plan: the disk is ephemeral, so schools created here reset on redeploy or
+# after the service sleeps. For data that lasts, move to a paid instance with a
+# disk mounted at /data and set SMS_DB_PATH=/data/school.db and
+# SMS_REGISTRY_PATH=/data/registry.db.
+services:
+  - type: web
+    name: school-management-system
+    runtime: node
+    plan: free
+    buildCommand: npm run install:all && npm --prefix client run build
+    startCommand: npm --prefix server start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # Signed per deploy; every session is invalidated if it rotates.
+      - key: JWT_SECRET
+        generateValue: true
