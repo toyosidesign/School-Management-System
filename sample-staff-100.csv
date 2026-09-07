@@ -1,0 +1,101 @@
+first_name,last_name,email,phone,role,title,department,qualifications,staff_code,is_senco,subjects,year_groups
+Halima,Iheanacho,halima.iheanacho@school.example,+234 8086 736 7891,teacher,Early Years Teacher,Nusery 1,"BA French, PGCE",STF-200,,Rhymes; Reading; Writing; Art,Nusery 1
+Uche,Oladipo,uche.oladipo@school.example,+234 8010 728 2322,teacher,Early Years Teacher,Early Years,"BA English, PGCE",STF-201,,Rhymes; Reading; Writing; Art,Prep; Early Years
+Rukayat,Nwosu,rukayat.nwosu@school.example,+234 8096 421 4444,teacher,Early Years Teacher,Prep,BEd Physical Education,STF-202,,Rhymes; Reading; Writing; Art,Prep
+Aderinsola,Aliyu,aderinsola.aliyu@school.example,+234 8053 191 9815,teacher,Early Years Teacher,Early Years,"BA History, QTS",STF-203,,Rhymes; Reading; Writing; Art,Early Years; Nursery 2
+Folake,Eneh,folake.eneh@school.example,+234 8056 572 7917,teacher,Early Years Teacher,Early Years,"BA English, PGCE",STF-204,,Rhymes; Reading; Writing; Art,Nursery 2; Early Years; Nusery 1
+Nneka,Nwachukwu,nneka.nwachukwu@school.example,+234 8074 921 9045,teacher,Early Years Teacher,Early Years,BEd Physical Education,STF-205,,Rhymes; Reading; Writing; Art,Early Years; Nusery 1
+Kabiru,Salami,kabiru.salami@school.example,+234 8076 924 1415,teacher,Early Years Teacher,Nursery 2,"BA French, PGCE",STF-206,,Rhymes; Reading; Writing; Art,Prep; Nursery 2
+Folake,Onyeka,folake.onyeka@school.example,+234 8089 539 8701,teacher,Early Years Teacher,Early Years,"BSc Mathematics, PGCE",STF-207,,Rhymes; Reading; Writing; Art,Early Years
+Fatima,Salami,fatima.salami@school.example,+234 8096 580 9939,teacher,Early Years Teacher,Prep,"BA History, QTS",STF-208,,Rhymes; Reading; Writing; Art,Prep
+Chukwuma,Okafor,chukwuma.okafor@school.example,+234 8035 401 5407,teacher,Early Years Teacher,Nursery 2,BEd Primary,STF-209,,Rhymes; Reading; Writing; Art,Prep; Nusery 1; Nursery 2
+Titilayo,Eneh,titilayo.eneh@school.example,+234 8056 304 5261,teacher,Early Years Teacher,Nursery 2,NCE Primary Education,STF-210,,Rhymes; Reading; Writing; Art,Prep; Nursery 2; Nusery 1
+Halima,Oladipo,halima.oladipo@school.example,+234 8094 134 5752,teacher,Early Years Teacher,Nursery 2,NCE Early Childhood,STF-211,,Rhymes; Reading; Writing; Art,Prep; Nursery 2
+Yetunde,Eze,yetunde.eze@school.example,+234 8033 535 8850,teacher,Early Years Teacher,Nursery 2,"BA English, PGCE",STF-212,,Rhymes; Reading; Writing; Art,Nursery 2; Nusery 1
+Aliyu,Mohammed,aliyu.mohammed@school.example,+234 8062 249 8362,teacher,Early Years Teacher,Early Years,BEd Primary,STF-213,,Rhymes; Reading; Writing; Art,Early Years; Prep
+Temitope,Adebayo,temitope.adebayo@school.example,+234 8041 223 1731,teacher,Early Years Teacher,Early Years,MEd Curriculum Studies,STF-214,,Rhymes; Reading; Writing; Art,Early Years; Nursery 2; Prep
+Chukwuma,Oladipo,chukwuma.oladipo@school.example,+234 8050 780 9060,teacher,Early Years Teacher,Early Years,NCE Primary Education,STF-215,,Rhymes; Reading; Writing; Art,Nusery 1; Early Years
+Emeka,Nwachukwu,emeka.nwachukwu@school.example,+234 8085 234 9269,teacher,Class Teacher,Grade 2,"BA History, QTS",STF-216,,Reading; Writing; Mathematics,Grade 2
+Kemi,Lawal,kemi.lawal@school.example,+234 8049 619 7750,teacher,Class Teacher,Grade 3,BEd Physical Education,STF-217,,Reading; Writing; Mathematics,Grade 3
+Uche,Afolabi,uche.afolabi@school.example,+234 8011 208 7379,teacher,Class Teacher,Grade 2,"BA English, PGCE",STF-218,,Reading; Writing; Mathematics,Grade 2
+Chidinma,Abubakar,chidinma.abubakar@school.example,+234 8075 587 6370,teacher,Class Teacher,Grade 1,"BSc Computer Science, PGCE",STF-219,,Reading; Writing; Mathematics,Grade 1; Grade 3
+Ngozi,Bakare,ngozi.bakare@school.example,+234 8069 685 3797,teacher,Class Teacher,Grade 2,"BSc Mathematics, PGCE",STF-220,,Reading; Writing; Mathematics,Grade 2
+Gbenga,Balogun,gbenga.balogun@school.example,+234 8096 827 2138,teacher,Class Teacher,Grade 1,MEd Curriculum Studies,STF-221,,Reading; Writing; Mathematics,Grade 2; Grade 3; Grade 1
+Hauwa,Abubakar,hauwa.abubakar@school.example,+234 8092 657 1789,teacher,Class Teacher,Grade 1,"BA Fine Art, PGCE",STF-222,,Reading; Writing; Mathematics,Grade 1
+Olamide,Chukwu,olamide.chukwu@school.example,+234 8026 761 9682,teacher,Class Teacher,Grade 1,"BSc Biology, PGCE",STF-223,,Reading; Writing; Mathematics,Grade 3; Grade 1
+Uche,Eneh,uche.eneh@school.example,+234 8094 964 4047,teacher,Class Teacher,Grade 1,BEd Physical Education,STF-224,,Reading; Writing; Mathematics,Grade 1
+Bukola,Balogun,bukola.balogun@school.example,+234 8049 291 6637,teacher,Class Teacher,Grade 2,"BSc Mathematics, PGCE",STF-225,,Reading; Writing; Mathematics,Grade 2
+Ifeoma,Oladipo,ifeoma.oladipo@school.example,+234 8032 433 9508,teacher,Class Teacher,Grade 2,"BA Fine Art, PGCE",STF-226,,Reading; Writing; Mathematics,Grade 2; Grade 3
+Halima,Afolabi,halima.afolabi@school.example,+234 8039 105 2525,teacher,Class Teacher,Grade 1,"BA Fine Art, PGCE",STF-227,,Reading; Writing; Mathematics,Grade 2; Grade 1; Grade 3
+Chinedu,Nwachukwu,chinedu.nwachukwu@school.example,+234 8055 966 3568,teacher,Class Teacher,Grade 1,NCE Early Childhood,STF-228,,Reading; Writing; Mathematics,Grade 1
+Segun,Afolabi,segun.afolabi@school.example,+234 8081 869 4513,teacher,Class Teacher,Grade 1,"BA French, PGCE",STF-229,,Reading; Writing; Mathematics,Grade 1; Grade 3; Grade 2
+Zainab,Danjuma,zainab.danjuma@school.example,+234 8022 546 3806,teacher,Class Teacher,Grade 1,"BA English, PGCE",STF-230,,Reading; Writing; Mathematics,Grade 1; Grade 3; Grade 2
+Rasheed,Aliyu,rasheed.aliyu@school.example,+234 8090 208 9300,teacher,Class Teacher,Grade 3,NCE Early Childhood,STF-231,,Reading; Writing; Mathematics,Grade 3
+Damilola,Uzoma,damilola.uzoma@school.example,+234 8043 362 2030,teacher,Class Teacher,Grade 4,BEd Primary,STF-232,,Mathematics; English,Grade 5; Grade 4
+Morayo,Eneh,morayo.eneh@school.example,+234 8017 198 4853,teacher,Class Teacher,Grade 4,BEd Primary,STF-233,,Mathematics; English,Grade 5; Grade 4
+Rukayat,Danjuma,rukayat.danjuma@school.example,+234 8068 721 1622,teacher,Class Teacher,Grade 4,BEd Physical Education,STF-234,,Mathematics; English,Grade 6; Grade 5; Grade 4
+Hauwa,Sani,hauwa.sani@school.example,+234 8097 483 9212,teacher,Class Teacher,Grade 4,"BSc Computer Science, PGCE",STF-235,,Mathematics; English,Grade 5; Grade 4
+Kabiru,Umar,kabiru.umar@school.example,+234 8065 999 1387,teacher,Class Teacher,Grade 4,"BA History, QTS",STF-236,,Mathematics; English,Grade 5; Grade 4
+Femi,Ojo,femi.ojo@school.example,+234 8063 426 1332,teacher,Class Teacher,Grade 5,MEd Curriculum Studies,STF-237,,Mathematics; English,Grade 5
+Gbenga,Nwachukwu,gbenga.nwachukwu@school.example,+234 8024 266 3010,teacher,Class Teacher,Grade 6,"BA English, PGCE",STF-238,,Mathematics; English,Grade 6
+Halima,Aliyu,halima.aliyu@school.example,+234 8064 692 3069,teacher,Class Teacher,Grade 4,NCE Early Childhood,STF-239,,Mathematics; English,Grade 6; Grade 5; Grade 4
+Blessing,Adeyemi,blessing.adeyemi@school.example,+234 8026 287 9895,teacher,Class Teacher,Grade 4,BEd Primary,STF-240,,Mathematics; English,Grade 6; Grade 4
+Emmanuel,Nwachukwu,emmanuel.nwachukwu@school.example,+234 8039 123 1271,teacher,Class Teacher,Grade 4,"BA History, QTS",STF-241,,Mathematics; English,Grade 5; Grade 6; Grade 4
+Aisha,Ogunleye,aisha.ogunleye@school.example,+234 8032 666 1622,teacher,Class Teacher,Grade 4,"BSc Computer Science, PGCE",STF-242,,Mathematics; English,Grade 4; Grade 6
+Tochukwu,Iheanacho,tochukwu.iheanacho@school.example,+234 8017 773 1186,teacher,Class Teacher,Grade 5,"BSc Computer Science, PGCE",STF-243,,Mathematics; English,Grade 5; Grade 6
+Tobi,Ibrahim,tobi.ibrahim@school.example,+234 8075 982 3471,teacher,Class Teacher,Grade 6,NCE Primary Education,STF-244,,Mathematics; English,Grade 6
+Suleiman,Adekunle,suleiman.adekunle@school.example,+234 8053 981 4292,teacher,Class Teacher,Grade 4,NCE Early Childhood,STF-245,,Mathematics; English,Grade 4; Grade 5
+Titilayo,Nwosu,titilayo.nwosu@school.example,+234 8030 743 7726,teacher,Mathematics Teacher,Grade 7,"BSc Mathematics, PGCE",STF-246,,Mathematics,Grade 8; Grade 9; Grade 7
+Oluchi,Aliyu,oluchi.aliyu@school.example,+234 8091 276 2379,teacher,Mathematics Teacher,Grade 7,"BA History, QTS",STF-247,,Mathematics,Grade 9; Grade 8; Grade 7
+Uche,Ogunleye,uche.ogunleye@school.example,+234 8022 118 9739,teacher,Mathematics Teacher,Grade 9,"BSc Biology, PGCE",STF-248,,Mathematics,Grade 9
+Danladi,Adebayo,danladi.adebayo@school.example,+234 8060 489 9830,teacher,Mathematics Teacher,Grade 7,MEd Curriculum Studies,STF-249,,Mathematics,Grade 9; Grade 7
+Chukwuma,Lawal,chukwuma.lawal@school.example,+234 8059 441 9970,teacher,Mathematics Teacher,Grade 7,"BA History, QTS",STF-250,,Mathematics,Grade 7; Grade 9; Grade 8
+Uche,Adebayo,uche.adebayo@school.example,+234 8047 402 9866,teacher,Mathematics Teacher,Grade 7,"BA History, QTS",STF-251,,Mathematics,Grade 7
+Blessing,Chukwu,blessing.chukwu@school.example,+234 8092 591 7924,teacher,Mathematics Teacher,Grade 9,NCE Early Childhood,STF-252,,Mathematics,Grade 9
+Aliyu,Oladipo,aliyu.oladipo@school.example,+234 8050 652 3371,teacher,Mathematics Teacher,Grade 7,"BSc Mathematics, PGCE",STF-253,,Mathematics,Grade 7; Grade 9; Grade 8
+Rukayat,Iheanacho,rukayat.iheanacho@school.example,+234 8018 476 5958,teacher,English Teacher,Grade 8,"BSc Biology, PGCE",STF-254,,English,Grade 8
+Amaka,Sani,amaka.sani@school.example,+234 8023 434 8939,teacher,English Teacher,Grade 7,"BA English, PGCE",STF-255,,English,Grade 7
+Obinna,Uzoma,obinna.uzoma@school.example,+234 8092 220 6698,teacher,English Teacher,Grade 8,"BA Fine Art, PGCE",STF-256,,English,Grade 8; Grade 9
+Ibrahim,Nwachukwu,ibrahim.nwachukwu@school.example,+234 8084 453 2352,teacher,English Teacher,Grade 7,"BA English, PGCE",STF-257,,English,Grade 7; Grade 8; Grade 9
+Nnamdi,Afolabi,nnamdi.afolabi@school.example,+234 8094 331 3758,teacher,English Teacher,Grade 8,NCE Early Childhood,STF-258,,English,Grade 8; Grade 9
+Bukola,Bello,bukola.bello@school.example,+234 8061 421 3895,teacher,English Teacher,Grade 8,"BSc Biology, PGCE",STF-259,,English,Grade 9; Grade 8
+Kelechi,Salami,kelechi.salami@school.example,+234 8085 490 4487,teacher,English Teacher,Grade 8,"BSc Mathematics, PGCE",STF-260,,English,Grade 8; Grade 9
+Nneka,Danjuma,nneka.danjuma@school.example,+234 8044 436 2930,teacher,English Teacher,Grade 8,NCE Early Childhood,STF-261,,English,Grade 8
+Simisola,Nwosu,simisola.nwosu@school.example,+234 8039 439 3350,teacher,History Teacher,Grade 10,MEd Curriculum Studies,STF-262,,History,Grade 10; Grade 11
+Kabiru,Okafor,kabiru.okafor@school.example,+234 8012 662 6393,teacher,History Teacher,Grade 10,"BSc Computer Science, PGCE",STF-263,,History,Grade 11; Grade 12; Grade 10
+Rukayat,Danjuma,rukayat.danjuma2@school.example,+234 8064 460 6414,teacher,History Teacher,Grade 10,BEd Primary,STF-264,,History,Grade 12; Grade 10
+Obinna,Lawal,obinna.lawal@school.example,+234 8081 818 5131,teacher,History Teacher,Grade 11,"BSc Mathematics, PGCE",STF-265,,History,Grade 11
+Titilayo,Sani,titilayo.sani@school.example,+234 8053 112 1614,teacher,History Teacher,Grade 11,"BSc Biology, PGCE",STF-266,,History,Grade 11; Grade 12
+Chukwuma,Salami,chukwuma.salami@school.example,+234 8036 909 8489,teacher,History Teacher,Grade 10,MEd Curriculum Studies,STF-267,,History,Grade 11; Grade 10
+Titilayo,Aliyu,titilayo.aliyu@school.example,+234 8098 292 9830,teacher,French Teacher,Grade 12,BEd Primary,STF-268,,French,Grade 12
+Emeka,Bello,emeka.bello@school.example,+234 8036 720 3798,teacher,French Teacher,Grade 11,NCE Primary Education,STF-269,,French,Grade 11
+Nneka,Balogun,nneka.balogun@school.example,+234 8013 377 7873,teacher,French Teacher,Grade 10,BEd Primary,STF-270,,French,Grade 12; Grade 10; Grade 11
+Uche,Iheanacho,uche.iheanacho@school.example,+234 8094 778 6591,teacher,French Teacher,Grade 11,NCE Early Childhood,STF-271,,French,Grade 11
+Amaka,Mohammed,amaka.mohammed@school.example,+234 8042 137 9028,teacher,French Teacher,Grade 11,"BSc Mathematics, PGCE",STF-272,,French,Grade 11; Grade 12
+Yetunde,Aliyu,yetunde.aliyu@school.example,+234 8057 380 9393,teacher,PE Teacher,Grade 10,NCE Primary Education,STF-273,,PE,Grade 10; Grade 8
+Hauwa,Adebayo,hauwa.adebayo@school.example,+234 8018 843 9338,teacher,PE Teacher,Grade 10,"BSc Computer Science, PGCE",STF-274,,PE,Grade 10
+Simisola,Okafor,simisola.okafor@school.example,+234 8075 634 6326,teacher,PE Teacher,Grade 11,"BA Fine Art, PGCE",STF-275,,PE,Grade 11; Grade 7
+Ngozi,Aliyu,ngozi.aliyu@school.example,+234 8081 984 3856,teacher,PE Teacher,Grade 7,"BA History, QTS",STF-276,,PE,Grade 7
+Kunle,Iheanacho,kunle.iheanacho@school.example,+234 8013 574 4946,teacher,PE Teacher,Grade 10,"BSc Biology, PGCE",STF-277,,PE,Grade 10; Grade 7; Grade 8
+Simisola,Iheanacho,simisola.iheanacho@school.example,+234 8037 910 5434,teacher,PE Teacher,Grade 11,NCE Primary Education,STF-278,,PE,Grade 11
+Bukola,Danjuma,bukola.danjuma@school.example,+234 8078 730 9832,teacher,Music Teacher,Grade 2,"BSc Biology, PGCE",STF-279,,Music,Grade 2; Grade 3
+Bukola,Adekunle,bukola.adekunle@school.example,+234 8026 916 2000,teacher,Music Teacher,Nursery 2,"BSc Computer Science, PGCE",STF-280,,Music,Nursery 2
+Kabiru,Afolabi,kabiru.afolabi@school.example,+234 8044 653 6843,teacher,Music Teacher,Grade 6,"BSc Mathematics, PGCE",STF-281,,Music,Nursery 2; Grade 6
+Chiamaka,Adekunle,chiamaka.adekunle@school.example,+234 8097 257 7781,teacher,Music Teacher,Nursery 2,"BSc Computer Science, PGCE",STF-282,,Music,Nursery 2
+Emmanuel,Nwachukwu,emmanuel.nwachukwu2@school.example,+234 8038 626 6966,teacher,Art Teacher,Grade 5,MEd Curriculum Studies,STF-283,,Art,Grade 5
+Kemi,Ojo,kemi.ojo@school.example,+234 8028 831 9326,teacher,Art Teacher,Grade 3,BEd Primary,STF-284,,Art,Grade 3; Grade 6
+Grace,Eze,grace.eze@school.example,+234 8013 267 9245,teacher,Art Teacher,Grade 5,"BSc Biology, PGCE",STF-285,,Art,Grade 5; Grade 6
+Nnamdi,Balogun,nnamdi.balogun@school.example,+234 8040 330 9102,teacher,Art Teacher,Grade 3,"BSc Biology, PGCE",STF-286,,Art,Grade 4; Grade 3
+Bukola,Salami,bukola.salami@school.example,+234 8056 821 4427,teacher,Religion Studies Teacher,Grade 10,"BA History, QTS",STF-287,,Religion Studies,Grade 10; Grade 4
+Sadiq,Bakare,sadiq.bakare@school.example,+234 8035 218 2291,teacher,Religion Studies Teacher,Grade 12,NCE Early Childhood,STF-288,,Religion Studies,Grade 12; Nusery 1; Prep
+Ikenna,Adekunle,ikenna.adekunle@school.example,+234 8032 308 8103,teacher,Religion Studies Teacher,Prep,"BSc Biology, PGCE",STF-289,,Religion Studies,Prep
+Chinedu,Oyelaran,chinedu.oyelaran@school.example,+234 8080 248 5402,admin,Head of School,,BSc Accounting,STF-300,,,
+Suleiman,Oyelaran,suleiman.oyelaran@school.example,+234 8071 633 8539,admin,Deputy Head,,BSc Accounting,STF-301,,,
+Tobi,Okonkwo,tobi.okonkwo@school.example,+234 8023 912 3359,admin,Bursar,,BA Administration,STF-302,,,
+Chidinma,Nwosu,chidinma.nwosu@school.example,+234 8058 723 1790,admin,Registrar,,BA Administration,STF-303,,,
+Zainab,Danjuma,zainab.danjuma2@school.example,+234 8020 572 8676,admin,Office Manager,,BSc Accounting,STF-304,,,
+Yetunde,Iheanacho,yetunde.iheanacho@school.example,+234 8077 200 5523,admin,Head of Inclusion,,BSc Accounting,STF-305,yes,,
+Nneka,Ibrahim,nneka.ibrahim@school.example,+234 8018 640 8412,admin,Attendance Officer,,BA Administration,STF-306,,,
+Yetunde,Abubakar,yetunde.abubakar@school.example,+234 8083 567 8841,admin,Head of Early Years,Early Years,BA Administration,STF-307,,,Early Years
+Morayo,Bello,morayo.bello@school.example,+234 8027 127 2722,admin,Head of Primary,Grade 3,MBA,STF-308,,,Grade 3
+Bukola,Salami,bukola.salami2@school.example,+234 8042 118 1756,admin,Head of Secondary,Grade 9,MEd Educational Leadership,STF-309,,,Grade 9

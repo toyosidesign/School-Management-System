@@ -418,13 +418,43 @@ r.get('/requests', requireRole('admin', 'teacher'), (req, res) => {
 });
 
 r.get('/audit', requirePermission('audit.read'), (req, res) => {
-  const { entity, action, limit = 200 } = req.query;
+  const { entity, action, q, limit = 200 } = req.query;
   const where = ['1=1']; const args = [];
   if (entity) { where.push('entity = ?'); args.push(entity); }
   if (action) { where.push('action = ?'); args.push(action); }
-  res.json(db.prepare(
+  if (q) {
+    where.push('(user_label LIKE ? OR entity_id LIKE ? OR prev_value LIKE ? OR new_value LIKE ?)');
+    args.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
+  }
+  // "What happened today" is the question this log is opened with, far more
+  // often than any record type.
+  const days = Number(req.query.days);
+  if (days > 0) { where.push("created_at >= datetime('now', ?)"); args.push(`-${days} day`); }
+  if (req.query.who) { where.push('user_label LIKE ?'); args.push(`%${req.query.who}%`); }
+
+  const rows = db.prepare(
     `SELECT * FROM audit_logs WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?`
-  ).all(...args, Math.min(1000, Number(limit))));
+  ).all(...args, Math.min(1000, Number(limit)));
+
+  // What the log actually holds, so the filters offer what is there rather than
+  // a list written when the platform was smaller: a filter for a record type
+  // nobody touches is noise, and one missing for a type being written daily
+  // hides it.
+  const kinds = db.prepare(
+    'SELECT entity, COUNT(*) n FROM audit_logs GROUP BY entity ORDER BY n DESC'
+  ).all();
+  const actions = db.prepare(
+    'SELECT action, COUNT(*) n FROM audit_logs GROUP BY action ORDER BY n DESC'
+  ).all();
+  const people = db.prepare(
+    `SELECT user_label, COUNT(*) n FROM audit_logs WHERE user_label IS NOT NULL
+     GROUP BY user_label ORDER BY n DESC LIMIT 40`
+  ).all();
+
+  res.json({
+    entries: rows, kinds, actions, people,
+    total: db.prepare('SELECT COUNT(*) n FROM audit_logs').get().n,
+  });
 });
 
 /* ── First-run setup ──────────────────────────────────────────────────────── */

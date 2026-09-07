@@ -838,11 +838,29 @@ function checkStaffRow(row, line, seen) {
     qualifications: value('qualifications'),
     staff_code: value('staff_code'),
     is_senco: truthy(row.is_senco),
+    subject_names: value('subjects').split(/[;,]/).map((x) => x.trim()).filter(Boolean),
+    year_names: value('year_groups').split(/[;,]/).map((x) => x.trim()).filter(Boolean),
+    subject_ids: [],
+    section_keys: [],
     errors: [],
     warnings: [],
   };
 
   if (!out.first_name || !out.last_name) out.errors.push('A first and last name are needed');
+
+  // What they teach and where, so a file that already knows both is not typed
+  // in again one record at a time. An unrecognised name is dropped and said,
+  // never invented: a subject nobody teaches would sit on a timetable unnoticed.
+  for (const name of out.subject_names) {
+    const subject = db.prepare('SELECT id FROM subjects WHERE lower(name) = lower(?) AND is_break = 0').get(name);
+    if (subject) out.subject_ids.push(subject.id);
+    else out.warnings.push(`No subject called ${name}`);
+  }
+  for (const name of out.year_names) {
+    const section = db.prepare('SELECT key FROM sections WHERE lower(name) = lower(?) OR key = ?').get(name, name);
+    if (section) out.section_keys.push(section.key);
+    else out.warnings.push(`No year group called ${name}`);
+  }
 
   if (!out.email) out.errors.push('An email is needed: it is how they are invited to sign in');
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) out.errors.push('That email does not look right');
@@ -891,6 +909,7 @@ r.post('/staff/import', requirePermission('staff.manage'), (req, res) => {
     ready: ready.length,
     errors: failed.length,
     teachers: ready.filter((r) => r.role === 'teacher').length,
+    with_subjects: ready.filter((r) => r.subject_ids.length).length,
     administrators: ready.filter((r) => r.role === 'admin').length,
   };
 
@@ -920,6 +939,14 @@ r.post('/staff/import', requirePermission('staff.manage'), (req, res) => {
                              row.phone || null, row.is_senco ? 1 : 0);
     const code = row.staff_code || `STF-${100 + Number(user.lastInsertRowid)}`;
     addStaff.run(user.lastInsertRowid, code, row.title || null, row.department || null, row.qualifications || null);
+
+    // Naming their subjects here fills in the classes taking them, exactly as
+    // it does from the person's own record.
+    staffTeaching(user.lastInsertRowid, {
+      subjectIds: row.subject_ids.length ? row.subject_ids : undefined,
+      sectionKeys: row.section_keys.length ? row.section_keys : undefined,
+      department: row.department,
+    });
 
     const invite = addInvite.run(user.lastInsertRowid, row.email, row.role, row.first_name, row.last_name, req.user.id);
     return { user_id: user.lastInsertRowid, invite_id: invite.lastInsertRowid, staff_code: code, row };

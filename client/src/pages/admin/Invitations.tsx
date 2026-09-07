@@ -7,7 +7,7 @@ import { dateLong, relative } from '../../lib/format';
 import Icon from '../../components/Icon';
 import IconButton from '../../components/IconButton';
 import Select from '../../components/Select';
-import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader } from '../../components/ui';
+import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader, TableCard } from '../../components/ui';
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Administrator', teacher: 'Teacher', parent: 'Parent or guardian',
@@ -162,7 +162,7 @@ export default function AdminInvitations() {
                     body="Invite a colleague or a guardian and their link appears in this list." />
       ) : (
         <>
-          <div className="card hidden overflow-hidden lg:block">
+          <TableCard title="Invitations" count={rows.length} noun="sent" className="hidden lg:block">
             <table className="w-full table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[28%]" />
@@ -227,7 +227,7 @@ export default function AdminInvitations() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableCard>
 
           <ul className="space-y-3 lg:hidden">
             {rows.map((i) => (

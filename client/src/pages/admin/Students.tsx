@@ -12,7 +12,7 @@ import DatePicker from '../../components/DatePicker';
 import Select from '../../components/Select';
 import StudentImport from '../../components/StudentImport';
 import SupportPlanDialog from '../../components/SupportPlanDialog';
-import { Avatar, Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader, Pagination, SenBadges } from '../../components/ui';
+import { Avatar, Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader, Pagination, SenBadges, TableCard } from '../../components/ui';
 
 export default function AdminStudents() {
   const navigate = useNavigate();
@@ -161,26 +161,37 @@ export default function AdminStudents() {
         }
       />
 
-      <div className="mb-5 space-y-3">
-        <label className="relative block">
+      {/* One row: the search takes what the dropdowns leave, and they keep the
+          width their longest option decides. The same shape as Staff and the
+          audit log, so a filter row is the same thing everywhere. */}
+      <div className="mb-5 flex flex-wrap items-center gap-2.5">
+        <label className="relative block w-full min-w-[14rem] flex-1">
           <span className="sr-only">Search students</span>
           <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
           <input className="input !pl-10" type="search" value={q} onChange={(e) => setQ(e.target.value)}
                  placeholder="Search by name, code or email…" />
         </label>
-        <div className="grid gap-3 sm:max-w-lg sm:grid-cols-2">
-          <Select
-            ariaLabel="Filter by section" value={section} onChange={setSection}
-            options={[{ value: '', label: 'All sections' },
-                      ...sections.map((sec) => ({ value: sec.key, label: sec.name }))]}
-          />
-          <Select
-            ariaLabel="Filter by support" value={supportFilter} onChange={setSupportFilter}
-            options={[{ value: '', label: 'Everyone' },
-                      { value: 'support', label: 'With support recorded' },
-                      { value: 'sen', label: 'On the SEN register' }]}
-          />
-        </div>
+
+        <Select
+          ariaLabel="Filter by section" value={section} onChange={setSection} className="w-full sm:w-44"
+          options={[{ value: '', label: 'All sections' },
+                    ...sections.map((sec) => ({ value: sec.key, label: sec.name }))]}
+        />
+        <Select
+          ariaLabel="Filter by support" value={supportFilter} onChange={setSupportFilter} className="w-full sm:w-52"
+          options={[{ value: '', label: 'Everyone' },
+                    { value: 'support', label: 'With support recorded' },
+                    { value: 'sen', label: 'On the SEN register' }]}
+        />
+
+        {(q || section || supportFilter) && (
+          <button
+            className="inline-flex items-center gap-1.5 px-1 text-sm font-semibold text-brand-600 hover:text-brand-800"
+            onClick={() => { setQ(''); setSection(''); setSupportFilter(''); }}
+          >
+            <Icon name="x" className="h-3.5 w-3.5" /> Clear the filters
+          </button>
+        )}
       </div>
 
       {students.loading && <Loading rows={4} />}
@@ -227,7 +238,7 @@ export default function AdminStudents() {
       {filtered.length > 0 && (
         <>
           {/* Table on desktop, cards on mobile, same data either way. */}
-          <div className="card hidden overflow-hidden lg:block">
+          <TableCard title="Pupils" count={filtered.length} noun="on the roll" className="hidden lg:block">
             {/* Fixed layout so the four data columns take an equal share of the
                 width, rather than the widest cell deciding for the rest. */}
             <table className="w-full table-fixed text-left text-sm">
@@ -325,7 +336,7 @@ export default function AdminStudents() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableCard>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
             {shown.map((s: any) => (

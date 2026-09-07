@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
@@ -10,7 +10,7 @@ import Icon from '../../components/Icon';
 import MultiSelect from '../../components/MultiSelect';
 import Select from '../../components/Select';
 import StaffImport from '../../components/StaffImport';
-import { Avatar, Badge, ErrorNote, Field, Loading, Modal, PageHeader, Toggle } from '../../components/ui';
+import { Avatar, Badge, ErrorNote, Field, Loading, Modal, PageHeader, Pagination, TableCard, Toggle } from '../../components/ui';
 
 export default function AdminStaff() {
   const { toast } = useToast();
@@ -34,6 +34,30 @@ export default function AdminStaff() {
   };
   const [form, setForm] = useState<any>(blank);
   const [editing, setEditing] = useState<any>(null);
+
+  // A staff list of a hundred is read the way a roll of five hundred is: by
+  // narrowing to the person or the group in mind, a screenful at a time.
+  const [q, setQ] = useState('');
+  const [role, setRole] = useState('');
+  const [year, setYear] = useState('');
+  const [subject, setSubject] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+
+  const filtered = useMemo(() => (data ?? []).filter((s: any) => {
+    if (role === 'senco' ? !s.is_senco : role && s.role !== role) return false;
+    if (year && !(s.sections ?? []).some((sec: any) => sec.key === year)) return false;
+    if (subject && !(s.subjects ?? []).some((sub: any) => String(sub.id) === subject)) return false;
+    if (!q.trim()) return true;
+    const needle = q.toLowerCase();
+    return `${s.first_name} ${s.last_name} ${s.email} ${s.staff_code} ${s.title ?? ''}`
+      .toLowerCase().includes(needle);
+  }), [data, q, role, year, subject]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const shown = filtered.slice((Math.min(page, pageCount) - 1) * PAGE_SIZE, Math.min(page, pageCount) * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [q, role, year, subject]);
 
   const edit = (person: any) => {
     setEditing(person);
@@ -130,9 +154,70 @@ export default function AdminStaff() {
         </section>
       )}
 
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <label className="relative block w-full min-w-[14rem] flex-1">
+          <span className="sr-only">Search staff</span>
+          <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+          <input className="input !pl-10" type="search" value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder="Search by name, email or staff number…" />
+        </label>
+
+        <Select
+          ariaLabel="Filter by role" value={role} onChange={setRole} className="w-full sm:w-44"
+          options={[
+            { value: '', label: 'Everyone', hint: `${(data ?? []).length} on the staff` },
+            { value: 'teacher', label: 'Teachers',
+              hint: `${(data ?? []).filter((s: any) => s.role === 'teacher').length}` },
+            { value: 'admin', label: 'Administrators',
+              hint: `${(data ?? []).filter((s: any) => s.role === 'admin').length}` },
+            { value: 'senco', label: 'SEN co-ordinators',
+              hint: `${(data ?? []).filter((s: any) => s.is_senco).length}` },
+          ]}
+        />
+
+        <Select
+          ariaLabel="Filter by year group" value={year} onChange={setYear} className="w-full sm:w-44"
+          options={[
+            { value: '', label: 'Every year group' },
+            ...sections.map((sec) => ({
+              value: sec.key, label: sec.name,
+              hint: `${(data ?? []).filter((s: any) =>
+                (s.sections ?? []).some((x: any) => x.key === sec.key)).length} staff`,
+            })),
+          ]}
+        />
+
+        <Select
+          ariaLabel="Filter by subject" value={subject} onChange={setSubject} className="w-full sm:w-44"
+          options={[
+            { value: '', label: 'Every subject' },
+            ...(subjects.data ?? []).map((sub: any) => ({
+              value: String(sub.id), label: sub.name,
+              hint: `${(data ?? []).filter((s: any) =>
+                (s.subjects ?? []).some((x: any) => x.id === sub.id)).length} teach it`,
+            })),
+          ]}
+        />
+
+        {(q || role || year || subject) && (
+          <button
+            className="inline-flex items-center gap-1.5 px-1 text-left text-sm font-semibold text-brand-600 hover:text-brand-800"
+            onClick={() => { setQ(''); setRole(''); setYear(''); setSubject(''); }}
+          >
+            <Icon name="x" className="h-3.5 w-3.5" /> Clear the filters
+          </button>
+        )}
+      </div>
+
+      {filtered.length === 0 && (data ?? []).length > 0 && (
+        <p className="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-ink-faint">
+          Nobody matches that. Try a different search or clear the filters.
+        </p>
+      )}
+
       {/* A staff list is read down a column: who, what they do, how to reach
           them. Cards spread twenty people over three screens. */}
-      <div className="card hidden overflow-hidden lg:block">
+      <TableCard title="Staff" count={filtered.length} noun="people" className="hidden lg:block">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
             <col className="w-[26%]" />
@@ -151,7 +236,7 @@ export default function AdminStaff() {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {(data ?? []).map((s) => (
+            {shown.map((s: any) => (
               <tr key={s.id} onClick={() => edit(s)} tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); edit(s); } }}
                   className="cursor-pointer transition-colors hover:bg-[color:var(--surface-sunken)] focus:bg-[color:var(--surface-sunken)] focus:outline-none">
@@ -197,10 +282,10 @@ export default function AdminStaff() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableCard>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
-        {(data ?? []).map((s) => (
+        {shown.map((s: any) => (
           <button key={s.id} onClick={() => edit(s)} className="card p-4 text-left transition hover:border-brand-300">
             <div className="flex items-start gap-3">
               <Avatar first={s.first_name} last={s.last_name} colour={s.avatar_colour} src={s.avatar_url} emoji={s.avatar_emoji} />
@@ -224,6 +309,9 @@ export default function AdminStaff() {
           </button>
         ))}
       </div>
+
+      <Pagination page={Math.min(page, pageCount)} pageSize={PAGE_SIZE} total={filtered.length}
+                  onPage={setPage} noun="staff" />
 
       <Modal
         open={open} onClose={() => { setOpen(false); setEditing(null); }} wide

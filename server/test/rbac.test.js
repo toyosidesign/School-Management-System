@@ -243,7 +243,9 @@ describe('administrator-only surfaces', () => {
     await ctx.api('POST', `/api/submissions/${submission.id}/grade`, { token: teacher, body: { grade: 88 } });
 
     const log = (await ctx.api('GET', '/api/audit?entity=submissions', { token: admin })).body;
-    const entry = log.find((a) => a.action === 'grade_update');
+    const entry = log.entries.find((a) => a.action === 'grade_update');
+    assert.ok(log.kinds.some((k) => k.entity === 'submissions'),
+              'the filters offer what the log actually holds');
     assert.ok(entry, 'the grade change is logged');
     assert.match(entry.new_value, /88/);
     assert.ok(entry.user_label.includes('Rossi'), 'the log names who did it');

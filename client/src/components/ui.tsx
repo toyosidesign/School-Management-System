@@ -314,6 +314,33 @@ export function Modal({ open, onClose, title, children, footer, wide = false }:
  * Says where you are in words rather than only in page numbers, because
  * "1 to 15 of 214" is the question a school office is actually asking.
  */
+/**
+ * A table with a bar across the top saying what it holds.
+ *
+ * A list of names is not self-describing: the same columns are staff on one
+ * page and pupils on another, and the number in it is what somebody wants
+ * before they start reading. Kept inside the card, so the count belongs to the
+ * table it counts rather than floating above it as a page-level fact.
+ */
+export function TableCard({ title, count, noun, actions, children, className = '' }:
+  { title: string; count?: number; noun?: string; actions?: ReactNode;
+    children: ReactNode; className?: string }) {
+  return (
+    <div className={`card overflow-hidden ${className}`}>
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-line px-4 py-3">
+        <h2 className="font-display text-base font-bold text-ink">{title}</h2>
+        {count != null && (
+          <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-bold text-brand-700">
+            {count} {noun ?? (count === 1 ? 'row' : 'rows')}
+          </span>
+        )}
+        {actions && <span className="ml-auto flex items-center gap-1.5">{actions}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function Pagination({ page, pageSize, total, onPage, noun = 'rows' }:
   { page: number; pageSize: number; total: number; onPage: (p: number) => void; noun?: string }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));

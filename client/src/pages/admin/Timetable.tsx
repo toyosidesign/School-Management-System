@@ -364,7 +364,7 @@ export default function AdminTimetable() {
                               if (dragging) (e.altKey ? copyTo : move)(dragging, day, period);
                               setDragging(null);
                             }}
-                            className={`border-b border-l border-line p-1 align-top transition-colors ${
+                            className={`h-full border-b border-l border-line align-top transition-colors ${
                               over === `${day}-${period}` ? 'bg-brand-50' : ''}`}
                           >
                             <button
@@ -376,7 +376,7 @@ export default function AdminTimetable() {
                                 room: klass?.room ?? '',
                               })}
                               aria-label={`Add a lesson on ${DAY_NAMES[day]}, period ${period}`}
-                              className="flex h-full min-h-[3.75rem] w-full items-center justify-center rounded-lg text-ink-faint opacity-0 transition hover:bg-[color:var(--surface-sunken)] hover:text-brand-600 focus:opacity-100 group-hover:opacity-100 sm:opacity-100"
+                              className="flex h-full min-h-[4.75rem] w-full items-center justify-center text-ink-faint opacity-0 transition-colors hover:bg-[color:var(--surface-sunken)] hover:text-brand-600 focus:opacity-100 group-hover:opacity-100 sm:opacity-100"
                             >
                               <Icon name="plus" className="h-4 w-4" />
                             </button>

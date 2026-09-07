@@ -7,7 +7,7 @@ import { dateLong } from '../../lib/format';
 import Icon from '../../components/Icon';
 import IconButton from '../../components/IconButton';
 import Select from '../../components/Select';
-import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader } from '../../components/ui';
+import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader, TableCard } from '../../components/ui';
 
 /** How many of a kind are still unanswered, said rather than counted in a badge. */
 const waitingHint = (n?: number) => (n ? `${n} waiting` : 'None waiting');
@@ -100,7 +100,7 @@ export default function AdminRequests() {
         <>
           {/* A queue is read down a column: what kind, who, when, why. Cards put
               each row's answer in a different place on the page. */}
-          <div className="card hidden overflow-hidden lg:block">
+          <TableCard title="Waiting on an answer" count={rows.length} noun="requests" className="hidden lg:block">
             <table className="w-full table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-[13%]" />
@@ -186,7 +186,7 @@ export default function AdminRequests() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableCard>
 
           <ul className="space-y-3 lg:hidden">
             {rows.map((request: any) => (

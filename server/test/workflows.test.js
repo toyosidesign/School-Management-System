@@ -303,7 +303,7 @@ describe('white-labelling', () => {
     const admin = await ctx.login(ACCOUNTS.admin);
     await ctx.api('PUT', '/api/website/settings', { token: admin, body: { name: 'Another Name' } });
     const log = (await ctx.api('GET', '/api/audit?entity=school_settings', { token: admin })).body;
-    assert.ok(log.some((a) => a.action === 'branding_update'));
+    assert.ok(log.entries.some((a) => a.action === 'branding_update'));
   });
 });
 
