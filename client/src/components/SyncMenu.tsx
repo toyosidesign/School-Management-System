@@ -33,7 +33,7 @@ export default function SyncMenu({ onDone }: { onDone?: () => void }) {
     };
   }, [open]);
 
-  const run = async (what: 'subjects' | 'teachers') => {
+  const run = async (what: 'subjects' | 'teachers' | 'pupils') => {
     setBusy(what);
     try {
       if (what === 'subjects') {
@@ -41,6 +41,15 @@ export default function SyncMenu({ onDone }: { onDone?: () => void }) {
         toast(out.added
           ? `${out.added} subject${out.added === 1 ? '' : 's'} added to classes. Each still needs a teacher.`
           : 'Every class already teaches its section’s subjects.');
+      } else if (what === 'pupils') {
+        const out = await api.post('/pupils/balance', {});
+        const said = [
+          out.moved
+            ? `${out.moved} pupil${out.moved === 1 ? '' : 's'} moved so the classrooms are within one of each other`
+            : 'Every year group is already even',
+          out.waiting && `${out.waiting} enrolled with no class: place them from the year they belong to`,
+        ].filter(Boolean);
+        toast(`${said.join('. ')}.`);
       } else {
         const out = await api.post('/teaching/sync', {});
         // Names the subjects it is waiting on. "283 classes have nobody" is a
@@ -79,6 +88,11 @@ export default function SyncMenu({ onDone }: { onDone?: () => void }) {
       key: 'teachers' as const,
       label: 'Teachers to classes',
       hint: 'Fills in who takes each subject, where it is not in doubt',
+    },
+    {
+      key: 'pupils' as const,
+      label: 'Pupils across classrooms',
+      hint: 'Evens out A, B and C within each year, moving as few as possible',
     },
   ];
 

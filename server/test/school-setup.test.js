@@ -689,6 +689,45 @@ describe('importing a week', () => {
   });
 });
 
+describe('placing an intake', () => {
+  it('fills the emptiest classroom first, so the rooms end up even', async () => {
+    const sections = (await ctx.api('GET', '/api/sections', { token: admin })).body;
+    const section = sections.find((sec) => sec.class_count > 1) ?? sections[0];
+
+    // A handful of pupils with nowhere to be.
+    for (const name of ['Ada', 'Bem', 'Chi', 'Dami', 'Efe']) {
+      const res = await post('/api/students', {
+        first_name: name, last_name: 'Newcomer',
+        email: `${name.toLowerCase()}.newcomer@family.example`, class_id: null,
+      });
+      assert.equal(res.status, 201, JSON.stringify(res.body));
+    }
+
+    const out = await post(`/api/sections/${section.key}/place-pupils`, {});
+    assert.equal(out.status, 200, out.body.error);
+    assert.ok(out.body.placed >= 5, 'everybody waiting was placed');
+
+    const sizes = out.body.rooms.map((r) => r.size);
+    assert.ok(Math.max(...sizes) - Math.min(...sizes) <= 1,
+              'no room is left more than one ahead of another');
+
+    const roll = (await ctx.api('GET', '/api/students', { token: admin })).body;
+    assert.equal(roll.filter((s) => !s.class_id).length, 0, 'nobody is left without a class');
+  });
+
+  it('says so when there is nobody waiting, or nowhere to put them', async () => {
+    const sections = (await ctx.api('GET', '/api/sections', { token: admin })).body;
+    const empty = await post(`/api/sections/${sections[0].key}/place-pupils`, {});
+    assert.equal(empty.status, 409);
+    assert.match(empty.body.error, /nobody is waiting|no classrooms/i);
+  });
+
+  it('is a job for whoever keeps the roll', async () => {
+    const sections = (await ctx.api('GET', '/api/sections', { token: admin })).body;
+    assert.equal((await post(`/api/sections/${sections[0].key}/place-pupils`, {}, teacher)).status, 403);
+  });
+});
+
 describe('when the school stops', () => {
   it('is set once and applies to every break already on a week', async () => {
     const klass = (await ctx.api('GET', '/api/classes', { token: admin })).body[0];

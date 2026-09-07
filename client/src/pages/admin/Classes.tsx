@@ -145,7 +145,35 @@ export default function AdminClasses() {
   const [copying, setCopying] = useState<any>(null);
   const [copyingYear, setCopyingYear] = useState<any>(null);
   const [importing, setImporting] = useState(false);
+  // Pupils being put into the open class, and a class being carried to another
+  // year group.
   const [placing, setPlacing] = useState<any>(null);
+  const [carrying, setCarrying] = useState<any>(null);
+  const [overYear, setOverYear] = useState('');
+
+  /**
+   * Moving a class into another year.
+   *
+   * A school that put Prep A under the wrong heading should be able to drag it
+   * where it belongs rather than delete it and lose its pupils, its subjects
+   * and its week: nothing about the class changes except which year it is in.
+   */
+  const moveToYear = async (klass: any, sectionKey: string) => {
+    if (klass.section === sectionKey) return;
+    setBusy(true);
+    try {
+      await api.patch(`/classes/${klass.id}`, { section: sectionKey });
+      toast(`${klass.name}${klass.room ? ` ${klass.room}` : ''} moved to ${nameOf(sectionKey)}.`);
+      classes.reload();
+      reloadSections();
+    } catch (err: any) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy(false);
+      setCarrying(null);
+      setOverYear('');
+    }
+  };
   const allStudents = useFetch<any[]>('/students');
 
   /** Moves the chosen pupils into the open class. */
@@ -351,7 +379,15 @@ export default function AdminClasses() {
 
           return (
           <section key={group.key}>
-            <div className="card p-4 sm:p-5">
+            <div
+              onDragOver={(e) => {
+                if (carrying && carrying.section !== group.key) { e.preventDefault(); setOverYear(group.key); }
+              }}
+              onDragLeave={() => setOverYear((k) => (k === group.key ? '' : k))}
+              onDrop={(e) => { e.preventDefault(); if (carrying) moveToYear(carrying, group.key); }}
+              className={`card p-4 transition sm:p-5 ${
+                overYear === group.key ? 'border-brand-400 ring-2 ring-brand-500/20' : ''}`}
+            >
             <div className="mb-3 flex items-center gap-2">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
                 <h2 className="font-display text-base font-bold text-ink">{group.title}</h2>
@@ -391,14 +427,18 @@ export default function AdminClasses() {
               {group.classes.map((c: any) => {
                 const open = selected?.id === c.id;
                 return (
+                  <span key={c.id} className="group/chip relative">
                   <button
-                    key={c.id}
+                    draggable
+                    onDragStart={() => setCarrying(c)}
+                    onDragEnd={() => { setCarrying(null); setOverYear(''); }}
                     onClick={() => setSelected(open ? null : c)}
                     aria-pressed={open}
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition ${
+                    title="Drag to another year group to move it"
+                    className={`flex cursor-grab items-center gap-2 rounded-xl border px-3 py-2 text-left transition active:cursor-grabbing ${
                       open ? 'border-brand-500 bg-brand-50 text-brand-900'
                         : 'border-line text-ink hover:border-brand-300'
-                    }`}
+                    } ${carrying?.id === c.id ? 'opacity-40' : ''}`}
                   >
                     <span className={`grid h-7 min-w-7 place-items-center rounded-lg px-1.5 text-xs font-bold ${
                       open ? 'bg-brand-600 text-white' : 'bg-[color:var(--surface-sunken)] text-ink-soft'
@@ -417,6 +457,14 @@ export default function AdminClasses() {
                     <Icon name="chevronDown"
                           className={`h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`} />
                   </button>
+
+                  {/* Renaming a classroom is a thing done to the chip, not a
+                      reason to open the class and read its whole week. */}
+                  <span className="absolute -right-1 -top-1 opacity-0 transition-opacity group-hover/chip:opacity-100 focus-within:opacity-100">
+                    <IconButton icon="pencil" label={`Rename ${c.name}${c.room ? ` ${c.room}` : ''}`}
+                                onClick={() => setEditing({ ...c })} />
+                  </span>
+                  </span>
                 );
               })}
 
@@ -886,6 +934,14 @@ export default function AdminClasses() {
               <input className="input" required value={editing.name}
                      onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
             </Field>
+            <Field label="Year group" hint="Moving a class keeps its pupils, its subjects and its week.">
+              <Select
+                value={editing.section}
+                onChange={(v) => setEditing({ ...editing, section: v })}
+                options={sections.map((sec) => ({ value: sec.key, label: sec.name }))}
+              />
+            </Field>
+
             <Field label="Classroom">
               <input className="input" value={editing.room ?? ''}
                      onChange={(e) => setEditing({ ...editing, room: e.target.value })} />

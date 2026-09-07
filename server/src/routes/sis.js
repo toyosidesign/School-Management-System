@@ -1022,6 +1022,131 @@ r.delete('/classes/:id/students/:studentId', requirePermission('students.manage'
   res.json({ ok: true });
 });
 
+/**
+ * Evens out the classrooms of every year.
+ *
+ * Registers drift: pupils arrive mid-term, leave, and get moved one at a time
+ * until one room has thirty and another twenty. This moves as few children as
+ * it can — always from the fullest room to the emptiest, always within their
+ * own year — and stops when the rooms are within one of each other. A pupil
+ * never crosses a year group: that is a decision about a child, not a tidy-up.
+ */
+r.post('/pupils/balance', requirePermission('students.manage'), (req, res) => {
+  const sections = db.prepare('SELECT key, name FROM sections ORDER BY sort_order, id').all();
+  const move = db.prepare('UPDATE students SET class_id = ? WHERE id = ?');
+
+  let moved = 0;
+  const evened = [];
+
+  for (const section of sections) {
+    const rooms = db.prepare(
+      `SELECT c.id, c.room, c.name,
+              (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND s.status = 'active') AS size
+       FROM classes c WHERE c.section = ?`
+    ).all(section.key);
+    if (rooms.length < 2) continue;
+
+    let touched = 0;
+    for (;;) {
+      rooms.sort((a, z) => z.size - a.size);
+      const fullest = rooms[0];
+      const emptiest = rooms[rooms.length - 1];
+      if (fullest.size - emptiest.size <= 1) break;
+
+      // The pupil most recently added to the fullest room is the one whose
+      // register has settled least, so they are the one to move.
+      const pupil = db.prepare(
+        "SELECT id FROM students WHERE class_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1"
+      ).get(fullest.id);
+      if (!pupil) break;
+
+      move.run(emptiest.id, pupil.id);
+      fullest.size -= 1;
+      emptiest.size += 1;
+      moved += 1;
+      touched += 1;
+    }
+
+    if (touched) {
+      evened.push({
+        section: section.name,
+        moved: touched,
+        rooms: rooms.sort((a, z) => String(a.room ?? '').localeCompare(String(z.room ?? '')))
+          .map((r) => `${r.room ?? r.name}: ${r.size}`),
+      });
+    }
+  }
+
+  // Somebody with no class at all cannot be placed from here: nothing says
+  // which year they belong to, and guessing would put a child in the wrong one.
+  const waiting = db.prepare(
+    "SELECT COUNT(*) n FROM students WHERE class_id IS NULL AND status = 'active'"
+  ).get().n;
+
+  if (moved) {
+    audit({ user: req.user, action: 'update', entity: 'students', entityId: 'bulk',
+            next: { evened, moved }, ip: req.ip });
+  }
+
+  res.json({ moved, evened, waiting });
+});
+
+/**
+ * Spreads pupils across the classrooms of one year.
+ *
+ * A year is A, B and C, and a new intake arrives as a list of names with no
+ * classroom against any of them. Splitting twenty-four children between two
+ * rooms by hand is arithmetic nobody should do: this fills the emptiest room
+ * first, so the rooms end up within one of each other however lopsided they
+ * started. Who goes where is still the school's to change afterwards — this
+ * only saves the first pass.
+ */
+r.post('/sections/:key/place-pupils', requirePermission('students.manage'), (req, res) => {
+  const section = db.prepare('SELECT * FROM sections WHERE key = ?').get(req.params.key);
+  if (!section) return res.status(404).json({ error: 'Section not found' });
+
+  const rooms = db.prepare(
+    `SELECT c.id, c.name, c.room,
+            (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND s.status = 'active') AS size
+     FROM classes c WHERE c.section = ? ORDER BY COALESCE(c.room, ''), c.id`
+  ).all(section.key);
+  if (!rooms.length) return res.status(409).json({ error: `${section.name} has no classrooms yet` });
+
+  // Named pupils, or everybody waiting for a class.
+  const wanted = Array.isArray(req.body?.student_ids) && req.body.student_ids.length
+    ? db.prepare(
+        `SELECT s.id FROM students s WHERE s.status = 'active'
+         AND s.id IN (${req.body.student_ids.map(() => '?').join(',')})`
+      ).all(...req.body.student_ids)
+    : db.prepare("SELECT id FROM students WHERE class_id IS NULL AND status = 'active' ORDER BY id").all();
+
+  if (!wanted.length) return res.status(409).json({ error: 'Nobody is waiting for a class' });
+
+  const move = db.prepare('UPDATE students SET class_id = ? WHERE id = ?');
+  const placed = db.transaction(() => {
+    let n = 0;
+    for (const pupil of wanted) {
+      rooms.sort((a, z) => a.size - z.size);
+      const room = rooms[0];
+      move.run(room.id, pupil.id);
+      room.size += 1;
+      n += 1;
+    }
+    return n;
+  })();
+
+  audit({ user: req.user, action: 'update', entity: 'students', entityId: 'bulk',
+          next: { section: section.name, placed, rooms: rooms.map((r) => `${r.room ?? r.name}:${r.size}`) },
+          ip: req.ip });
+
+  res.json({
+    placed,
+    section: section.name,
+    rooms: rooms.sort((a, z) => String(a.room ?? '').localeCompare(String(z.room ?? '')))
+      .map((r) => ({ id: r.id, room: r.room ?? r.name, size: r.size })),
+  });
+});
+
 /* ── The school's own divisions ───────────────────────────────────────────── */
 
 /** Every phase the school teaches in, in the order it thinks of them. */
@@ -1223,11 +1348,15 @@ r.get('/classes', (req, res) => {
             (SELECT COUNT(*) FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
               WHERE cs.class_id = c.id AND sub.is_break = 0 AND cs.teacher_id IS NULL) AS unstaffed_count
      FROM classes c LEFT JOIN users u ON u.id = c.homeroom_teacher_id
+     LEFT JOIN sections sec ON sec.key = c.section
      ${scope ? `WHERE c.id IN (${scope.map(() => '?').join(',')})` : ''}
-     -- Section, then year, then the order the arms were created in, which is
-     -- the order the office wrote them down.
-     ORDER BY CASE c.section WHEN 'nursery' THEN 1 WHEN 'primary' THEN 2 ELSE 3 END,
-              c.level, c.id`
+     -- The school's own order, youngest first: it wrote the sections down in
+     -- the order it thinks of them, and Early Years before Grade 12 is that
+     -- order. The three names this once knew — nursery, primary, secondary —
+     -- stopped being the whole story the day a school could name its own.
+     ORDER BY sec.sort_order, sec.id, c.level,
+              -- Within a year, the classrooms as the office lettered them.
+              COALESCE(c.room, ''), c.name, c.id`
   ).all(...(scope ?? [])));
 });
 
@@ -1547,14 +1676,30 @@ r.patch('/classes/:id', requirePermission('curriculum.manage'), (req, res) => {
     patch.level = levelFor(prev.section, patch.year_label ?? patch.name, null);
   }
 
-  const fields = ['name', 'year_label', 'stream', 'level', 'room', 'homeroom_teacher_id']
+  // A class can move year: a school that put Prep A under the wrong heading
+  // should not have to delete it and lose its pupils, its subjects and its week.
+  if ('section' in patch && patch.section !== prev.section) {
+    const section = db.prepare('SELECT * FROM sections WHERE key = ?').get(patch.section);
+    if (!section) return res.status(400).json({ error: "Choose one of your school's year groups" });
+    patch.level = levelFor(section.key, patch.year_label ?? patch.name ?? prev.name, null);
+  }
+
+  const fields = ['name', 'year_label', 'stream', 'level', 'room', 'homeroom_teacher_id', 'section']
     .filter((f) => f in patch);
   if (!fields.length) return res.json(prev);
 
-  if (patch.name && patch.name !== prev.name
-      && db.prepare('SELECT 1 FROM classes WHERE lower(name) = lower(?) AND section = ? AND id != ?')
-        .get(patch.name, patch.section ?? prev.section, prev.id)) {
-    return res.status(409).json({ error: 'Another class in this section already has that name' });
+  // Names are told apart within a year, and classes named for their room are
+  // told apart by the room: moving Grade 4 A into a year that already has an A
+  // is the clash worth catching before it is two registers with one name.
+  const name = patch.name ?? prev.name;
+  const room = 'room' in patch ? patch.room : prev.room;
+  const section = patch.section ?? prev.section;
+  if ((name !== prev.name || section !== prev.section || room !== prev.room)
+      && db.prepare(
+        `SELECT 1 FROM classes WHERE lower(name) = lower(?) AND section = ?
+         AND COALESCE(lower(room), '') = COALESCE(lower(?), '') AND id != ?`
+      ).get(name, section, room ?? null, prev.id)) {
+    return res.status(409).json({ error: 'Another class in that year group already has that name and classroom' });
   }
 
   db.prepare(`UPDATE classes SET ${fields.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`)

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { api } from '../../lib/api';
+import { useFetch } from '../../lib/useFetch';
 import { useSections } from '../../lib/useSections';
 import { useToast } from '../../context/ToastContext';
 import Icon from '../../components/Icon';
 import SyncMenu from '../../components/SyncMenu';
+import IconButton from '../../components/IconButton';
 import TeacherPicker from '../../components/TeacherPicker';
 import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader, Toggle } from '../../components/ui';
 
@@ -49,6 +51,35 @@ export default function AdminSections() {
 
   const [copying, setCopying] = useState<any>(null);
   const [staffing, setStaffing] = useState<any>(null);
+  const [placing, setPlacing] = useState<any>(null);
+
+  // Everybody enrolled but not yet in a class: an intake, until somebody puts
+  // them somewhere.
+  const waiting = useFetch<any[]>('/students');
+  const unplaced = (waiting.data ?? []).filter((s: any) => !s.class_id);
+
+  /**
+   * Spreads the pupils waiting for a class across a year's classrooms.
+   *
+   * Splitting an intake between A and B by hand is arithmetic, and the answer
+   * is always the same: fill the emptiest first. Who ends up where is still the
+   * school's to change; this only saves the first pass.
+   */
+  const placePupils = async (section: any) => {
+    setBusy(true);
+    try {
+      const out = await api.post(`/sections/${section.key}/place-pupils`, {});
+      toast(`${out.placed} pupil${out.placed === 1 ? '' : 's'} placed: `
+        + out.rooms.map((r: any) => `${r.room} ${r.size}`).join(', '));
+      setPlacing(null);
+      reload();
+      waiting.reload();
+    } catch (err: any) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   /**
    * Copies a section and the shape of what runs inside it: its classes, their
@@ -258,7 +289,14 @@ export default function AdminSections() {
                 </button>
               </span>
 
-              <span className="flex shrink-0 gap-1">
+              <span className="flex shrink-0 items-center gap-1">
+                {unplaced.length > 0 && section.class_count > 0 && (
+                  <IconButton
+                    icon="users" tone="brand"
+                    label={`Place the ${unplaced.length} waiting pupil${unplaced.length === 1 ? '' : 's'} in ${section.name}`}
+                    onClick={() => setPlacing(section)}
+                  />
+                )}
                 <button className="btn-subtle !px-2"
                         onClick={() => setCopying({
                           source: section, name: `${section.name} (copy)`,
@@ -299,6 +337,34 @@ export default function AdminSections() {
       </section>
 
       <TeacherPicker target={staffing} onClose={() => setStaffing(null)} onSaved={reload} />
+
+      <Modal
+        open={!!placing} onClose={() => setPlacing(null)}
+        title={placing ? `Place pupils in ${placing.name}` : ''}
+        footer={
+          <>
+            <button className="btn-ghost" onClick={() => setPlacing(null)}>Cancel</button>
+            <button className="btn-primary" disabled={busy} onClick={() => placePupils(placing)}>
+              {busy ? 'Placing...' : `Place ${unplaced.length}`}
+            </button>
+          </>
+        }
+      >
+        {placing && (
+          <div className="space-y-3">
+            <p className="text-sm text-ink-soft">
+              {unplaced.length} pupil{unplaced.length === 1 ? ' is' : 's are'} enrolled with no class.
+              They will be spread across the {placing.class_count} classroom
+              {placing.class_count === 1 ? '' : 's'} of {placing.name}, emptiest first, so the rooms end
+              up within one of each other.
+            </p>
+            <p className="rounded-xl border border-line bg-[color:var(--surface-sunken)] px-3 py-2.5 text-xs text-ink-soft">
+              Nobody already in a class is moved. Who ends up where is yours to change afterwards, on the
+              pupil's own record or from Classes and timetable.
+            </p>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={!!copying} onClose={() => setCopying(null)} wide

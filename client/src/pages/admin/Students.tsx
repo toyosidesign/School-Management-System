@@ -244,10 +244,11 @@ export default function AdminStudents() {
             <table className="w-full table-fixed text-left text-sm">
               <colgroup>
                 <col className="w-12" />
-                <col className="w-[23%]" />
-                <col className="w-[23%]" />
-                <col className="w-[23%]" />
-                <col className="w-[23%]" />
+                <col className="w-[24%]" />
+                <col className="w-[16%]" />
+                <col className="w-[10%]" />
+                <col className="w-[18%]" />
+                <col className="w-[26%]" />
                 <col className="w-14" />
               </colgroup>
               <thead className="border-b border-line bg-[color:var(--surface-sunken)] text-xs uppercase tracking-wide text-ink-soft">
@@ -264,6 +265,9 @@ export default function AdminStudents() {
                   </th>
                   <th className="px-4 py-3 font-bold">Student</th>
                   <th className="px-4 py-3 font-bold">Class</th>
+                  {/* The classroom is what tells one Grade 4 from another, so it
+                      is a column rather than a suffix nobody can sort by. */}
+                  <th className="px-4 py-3 font-bold">Classroom</th>
                   <th className="px-4 py-3 font-bold">Date of birth</th>
                   <th className="px-4 py-3 font-bold">Support</th>
                   <th className="px-4 py-3" />
@@ -300,6 +304,11 @@ export default function AdminStudents() {
                       </div>
                     </td>
                     <td className="truncate px-4 py-3 text-ink-soft">{s.class_name ?? '-'}</td>
+                    <td className="px-4 py-3">
+                      {s.class_room
+                        ? <Badge tone="slate">{s.class_room}</Badge>
+                        : <span className="text-ink-faint">-</span>}
+                    </td>
                     <td className="px-4 py-3 tabular-nums text-ink-soft">{s.date_of_birth ? dateShort(s.date_of_birth) : '-'}</td>
                     {/* Support is set from the roll as well as the register, so a
                         pupil can be given a plan where their name already is. */}

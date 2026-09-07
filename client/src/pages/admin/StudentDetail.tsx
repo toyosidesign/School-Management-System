@@ -28,7 +28,12 @@ export default function StudentDetail() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.patch(`/students/${id}`, editing);
+      await api.patch(`/students/${id}`, {
+        ...editing,
+        // An empty choice is "no class", which the API reads as null rather
+        // than as an id it cannot find.
+        class_id: editing.class_id === '' ? null : editing.class_id,
+      });
       toast('Record updated.');
       setEditing(null);
       reload();
@@ -78,6 +83,7 @@ export default function StudentDetail() {
                 emergency_contact_name: s.emergency_contact_name ?? '',
                 emergency_contact_phone: s.emergency_contact_phone ?? '',
                 status: s.status,
+                class_id: s.class_id ?? '',
               })}
             >
               <Icon name="pencil" className="h-3.5 w-3.5" /> Edit record
@@ -253,6 +259,23 @@ export default function StudentDetail() {
               <Field label="Date of birth">
                 <DatePicker value={editing.date_of_birth} max={new Date().toISOString().slice(0, 10)}
                             onChange={(v) => setEditing({ ...editing, date_of_birth: v })} />
+              </Field>
+              {/* A pupil belongs to one class, so moving them is a choice made
+                  on their record as readily as on the class's. */}
+              <Field label="Class" hint="Moving them here takes them off their old register.">
+                <Select
+                  value={editing.class_id ? String(editing.class_id) : ''}
+                  onChange={(v) => setEditing({ ...editing, class_id: v ? Number(v) : null })}
+                  placeholder="Not in a class"
+                  options={[
+                    { value: '', label: 'Not in a class' },
+                    ...(classes.data ?? []).map((c: any) => ({
+                      value: String(c.id),
+                      label: c.room ? `${c.name} · ${c.room}` : c.name,
+                      hint: `${c.student_count} pupil${c.student_count === 1 ? '' : 's'}`,
+                    })),
+                  ]}
+                />
               </Field>
             </div>
 
