@@ -6,6 +6,7 @@ import { DAY_NAMES } from '../../lib/format';
 import { useBranding } from '../../context/BrandingContext';
 import { useSections } from '../../lib/useSections';
 import Icon from '../../components/Icon';
+import IconButton from '../../components/IconButton';
 import SyncMenu from '../../components/SyncMenu';
 import ClassImport from '../../components/ClassImport';
 import Select from '../../components/Select';
@@ -350,36 +351,33 @@ export default function AdminClasses() {
 
           return (
           <section key={group.key}>
-            <div className="group/year mb-2 flex items-center gap-2">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+            <div className="card p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
                 <h2 className="font-display text-base font-bold text-ink">{group.title}</h2>
-                <span className="text-xs text-ink-faint">
+                <Badge tone="slate">
                   {group.classes.length} class{group.classes.length === 1 ? '' : 'es'}
-                  {' · '}{group.classes.reduce((n: number, c: any) => n + c.student_count, 0)} pupils
-                </span>
+                </Badge>
+                <Badge tone="brand" icon="users">
+                  {group.classes.reduce((n: number, c: any) => n + c.student_count, 0)} pupils
+                </Badge>
               </div>
 
-              <button
-                className="btn-ghost btn-sm shrink-0"
-                onClick={() => {
-                  const section = sections.find((sec) => sec.key === group.key);
-                  if (!section) return;
-                  setCopyingYear({
-                    section, name: `${section.name} (copy)`,
-                    with_classes: true, with_subjects: true, with_timetable: true,
-                  });
-                }}
-              >
-                <Icon name="copy" className="h-3.5 w-3.5" /> Duplicate year
-              </button>
-
-              <button
-                className="btn-subtle !px-2 shrink-0"
-                onClick={() => removeYear(group)}
-                aria-label={`Remove ${group.title}`} title="Remove this year"
-              >
-                <Icon name="trash" className="h-4 w-4" />
-              </button>
+              <span className="flex shrink-0 items-center gap-1">
+                <IconButton
+                  icon="copy" label={`Duplicate ${group.title}`}
+                  onClick={() => {
+                    const section = sections.find((sec) => sec.key === group.key);
+                    if (!section) return;
+                    setCopyingYear({
+                      section, name: `${section.name} (copy)`,
+                      with_classes: true, with_subjects: true, with_timetable: true,
+                    });
+                  }}
+                />
+                <IconButton icon="trash" tone="danger" label={`Remove ${group.title}`}
+                            onClick={() => removeYear(group)} />
+              </span>
             </div>
 
             {/* The classrooms of a year, side by side: a grade is A, B and C,
@@ -424,8 +422,10 @@ export default function AdminClasses() {
               </button>
             </div>
 
+            </div>
+
             {group.classes.length > 0 && !holdsSelected && (
-              <p className="mt-1.5 text-xs text-ink-faint">
+              <p className="mt-1.5 px-1 text-xs text-ink-faint">
                 Open a classroom to add its pupils, its subjects and their teachers.
               </p>
             )}
@@ -438,23 +438,18 @@ export default function AdminClasses() {
           <h2 className="font-display text-lg font-bold text-ink">
             {selected.name}{selected.room ? ` · ${selected.room}` : ''}
           </h2>
-          <span className="flex shrink-0 gap-1">
-            <button className="btn-subtle !px-2"
-                    onClick={() => setCopying({
-                      source: selected, section: selected.section, room: '', name: selected.name,
-                      with_subjects: true, with_timetable: true,
-                    })}
-                    aria-label={`Duplicate ${selected.name}`} title="Duplicate this class">
-              <Icon name="copy" className="h-4 w-4" />
-            </button>
-            <button className="btn-subtle !px-2" onClick={() => setEditing({ ...selected })}
-                    aria-label={`Edit ${selected.name}`} title="Rename or move it">
-              <Icon name="pencil" className="h-4 w-4" />
-            </button>
-            <button className="btn-subtle !px-2" onClick={() => remove(selected)}
-                    aria-label={`Remove ${selected.name}`} title="Remove this class">
-              <Icon name="trash" className="h-4 w-4" />
-            </button>
+          <span className="flex shrink-0 items-center gap-1">
+            <IconButton
+              icon="copy" label={`Duplicate ${selected.name}`}
+              onClick={() => setCopying({
+                source: selected, section: selected.section, room: '', name: selected.name,
+                with_subjects: true, with_timetable: true,
+              })}
+            />
+            <IconButton icon="pencil" label="Rename or move this class"
+                        onClick={() => setEditing({ ...selected })} />
+            <IconButton icon="trash" tone="danger" label={`Remove ${selected.name}`}
+                        onClick={() => remove(selected)} />
           </span>
         </div>
 
