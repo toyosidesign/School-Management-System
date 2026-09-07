@@ -89,6 +89,31 @@ describe('a deployment holding many schools', () => {
     assert.match((await signUp('ab', 'Another', 'a@b.example')).body.error, /three characters/i);
   });
 
+  it('decides which host means which school', async () => {
+    // Asked of the resolver rather than over HTTP: fetch refuses to set a Host
+    // header, so the one thing under test could not be expressed as a request.
+    const { schoolFromRequest } = await import('../src/lib/tenant.js');
+    const at = (hostname) => schoolFromRequest({ get: () => null, query: {}, hostname });
+
+    // A platform's own subdomain is the deployment, not a school inside it.
+    assert.equal(at('my-app.onrender.com'), null);
+    assert.equal(at('localhost'), null);
+    assert.equal(at('127.0.0.1'), null);
+    // Locally, a subdomain of localhost is a school, so development has the
+    // same shape as production.
+    assert.equal(at('northgate.localhost'), 'northgate');
+
+    process.env.ROOT_DOMAIN = 'schools.example';
+    try {
+      assert.equal(at('northgate.schools.example'), 'northgate');
+      assert.equal(at('schools.example'), null, 'the bare domain is the deployment itself');
+      assert.equal(at('www.schools.example'), null);
+      assert.equal(at('my-app.onrender.com'), null, 'still not a school under another domain');
+    } finally {
+      delete process.env.ROOT_DOMAIN;
+    }
+  });
+
   it('answers nothing for a school that does not exist', async () => {
     const missing = await call('GET', '/api/public/site', { school: 'nowhere' });
     assert.equal(missing.status, 404);

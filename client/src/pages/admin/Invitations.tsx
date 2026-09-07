@@ -5,6 +5,7 @@ import { useFetch } from '../../lib/useFetch';
 import { useToast } from '../../context/ToastContext';
 import { dateLong, relative } from '../../lib/format';
 import Icon from '../../components/Icon';
+import IconButton from '../../components/IconButton';
 import Select from '../../components/Select';
 import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader } from '../../components/ui';
 
@@ -212,19 +213,13 @@ export default function AdminInvitations() {
                     </td>
                     <td className="px-4 py-3">
                       {!i.accepted_at && (
-                        <span className="flex flex-wrap items-center justify-end gap-2">
+                        <span className="flex flex-wrap items-center justify-end gap-1">
                           {i.status !== 'revoked' && (
-                            <button
-                              className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-ink-soft transition-colors hover:text-red-700"
-                              onClick={() => revoke(i)}>
-                              Cancel
-                            </button>
+                            <IconButton icon="x" tone="danger" label="Cancel this invitation"
+                                        onClick={() => revoke(i)} />
                           )}
-                          <button
-                            className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-brand-600 transition-colors hover:text-brand-800"
-                            onClick={() => resend(i)}>
-                            <Icon name="refresh" className="h-3.5 w-3.5" /> Resend
-                          </button>
+                          <IconButton icon="refresh" tone="brand" label="Send a new link"
+                                      onClick={() => resend(i)} />
                         </span>
                       )}
                     </td>

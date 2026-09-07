@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import { api, currentSchool, setSchool } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useBranding } from '../context/BrandingContext';
@@ -41,6 +41,10 @@ export default function Login() {
   // single school offers to set it up. Both are the same question — is there a
   // way in for somebody nobody has invited yet — asked of different shapes.
   const [tenancy, setTenancy] = useState<any>(null);
+  // A browser that has visited a school once keeps sending it, which is right
+  // until somebody wants a different one — and then it is a locked door with no
+  // handle, because nothing on screen says which school is being signed in to.
+  const remembered = currentSchool();
   useEffect(() => {
     api.get('/public/setup-state').then((res) => setNeedsSetup(!!res.needs_setup)).catch(() => {});
     api.get('/public/tenancy').then(setTenancy).catch(() => {});
@@ -227,6 +231,18 @@ export default function Login() {
           {/* An unclaimed installation leads with it, because there is nothing
               else anybody can do here yet. A claimed one still says where the
               door is, quietly, rather than pretending there is none. */}
+          {remembered && (
+            <p className="mt-4 rounded-xl border border-line bg-[color:var(--surface-sunken)] px-3 py-2.5 text-center text-xs text-ink-soft">
+              Signing in to <b className="font-mono text-ink">{remembered}</b>.{' '}
+              <button
+                className="font-semibold text-brand-600 hover:underline"
+                onClick={() => { setSchool(null); location.href = '/login'; }}
+              >
+                Use a different school
+              </button>
+            </p>
+          )}
+
           {needsSetup ? (
             <Link
               to="/set-up"

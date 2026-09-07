@@ -5,6 +5,7 @@ import { useFetch } from '../../lib/useFetch';
 import { useToast } from '../../context/ToastContext';
 import { dateLong } from '../../lib/format';
 import Icon from '../../components/Icon';
+import IconButton from '../../components/IconButton';
 import Select from '../../components/Select';
 import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader } from '../../components/ui';
 
@@ -159,31 +160,25 @@ export default function AdminRequests() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="flex flex-wrap items-center justify-end gap-1.5">
+                        {/* Icons, named on hover: the same four words repeated
+                            down eleven rows drown the records they belong to. */}
                         {request.decide_path && request.status === 'pending' && (
                           <>
-                            {/* Plain text: a filled button in every row of a
-                                queue reads as eleven things demanding to be
-                                pressed at once. */}
-                            <button
-                              className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-ink-soft transition-colors hover:text-red-700 disabled:opacity-50"
-                              disabled={busy}
-                              onClick={() => { setNote(''); setOpen({ request, approved: false }); }}>
-                              <Icon name="x" className="h-3.5 w-3.5" /> Refuse
-                            </button>
-                            <button
-                              className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-brand-600 transition-colors hover:text-brand-800 disabled:opacity-50"
-                              disabled={busy}
-                              onClick={() => { setNote(''); setOpen({ request, approved: true }); }}>
-                              <Icon name="check" className="h-3.5 w-3.5" /> Approve
-                            </button>
+                            <IconButton
+                              icon="x" tone="danger" label="Refuse" disabled={busy}
+                              onClick={() => { setNote(''); setOpen({ request, approved: false }); }}
+                            />
+                            <IconButton
+                              icon="check" tone="brand" label="Approve" disabled={busy}
+                              onClick={() => { setNote(''); setOpen({ request, approved: true }); }}
+                            />
                           </>
                         )}
                         {request.link && (
-                          <Link to={request.link}
-                                className="inline-flex items-center px-1 text-ink-faint transition-colors hover:text-ink"
-                                title="Open the page this came from" aria-label={`View ${request.who} in full`}>
-                            <Icon name="chevronRight" className="h-4 w-4" />
-                          </Link>
+                          <IconButton
+                            as="link" href={request.link} icon="chevronRight"
+                            label={`Open ${request.kind_label.toLowerCase()} in full`}
+                          />
                         )}
                       </span>
                     </td>

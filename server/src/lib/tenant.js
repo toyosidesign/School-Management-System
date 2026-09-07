@@ -41,21 +41,29 @@ export function schoolFromRequest(req) {
   const host = (req.hostname || '').toLowerCase();
   if (!host || BARE.has(host) || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
 
-  // The deployment's own address is not a school. On a platform such as Render
-  // the app answers at app.onrender.com, which would otherwise read as a school
-  // named "app"; naming that host here keeps the deployment bare, so setup runs
-  // on it and schools are reached with ?school= until a wildcard domain exists.
-  const root = (process.env.APP_HOST || process.env.RENDER_EXTERNAL_HOSTNAME || '').toLowerCase();
-  if (root && (host === root || host === `www.${root}`)) return null;
+  // The deployment's own address is never a school. On a platform such as
+  // Render the app answers at my-app.onrender.com, which would otherwise read
+  // as a school called "my-app" and 404 every request: that subdomain is the
+  // deployment, not a school inside it.
+  const self = (process.env.APP_HOST || process.env.RENDER_EXTERNAL_HOSTNAME || '').toLowerCase();
+  if (self && (host === self || host === `www.${self}`)) return null;
 
-  const parts = host.split('.');
-  // A bare domain (example.com) has no school in it; a subdomain of localhost
-  // (northgate.localhost) does, which is what makes local development real.
-  const enough = host.endsWith('.localhost') ? 2 : 3;
-  if (parts.length < enough) return null;
+  // Locally, a subdomain of localhost is a school, which is what makes
+  // development the same shape as production.
+  if (host.endsWith('.localhost')) {
+    const [first] = host.split('.');
+    return first === 'www' ? null : first;
+  }
 
-  const [first] = parts;
-  return first === 'www' ? null : first;
+  // Anywhere else, a subdomain means a school only under the domain this
+  // deployment says is its own — set ROOT_DOMAIN once wildcard DNS points here.
+  // Until then schools are reached with ?school=, on any host.
+  const root = (process.env.ROOT_DOMAIN || '').toLowerCase().replace(/^\.+/, '');
+  if (!root || host === root || !host.endsWith(`.${root}`)) return null;
+
+  const label = host.slice(0, -(root.length + 1));
+  if (!label || label.includes('.') || label === 'www') return null;
+  return label;
 }
 
 /**

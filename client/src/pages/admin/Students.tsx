@@ -7,6 +7,7 @@ import { dateShort } from '../../lib/format';
 import { useBranding } from '../../context/BrandingContext';
 import { useSections } from '../../lib/useSections';
 import Icon from '../../components/Icon';
+import IconButton from '../../components/IconButton';
 import DatePicker from '../../components/DatePicker';
 import Select from '../../components/Select';
 import StudentImport from '../../components/StudentImport';
@@ -314,13 +315,11 @@ export default function AdminStudents() {
                       </button>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        className="btn-subtle !min-h-0 !px-1.5 !py-1 opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100"
-                        onClick={(e) => { e.stopPropagation(); remove(s); }}
-                        aria-label={`Remove ${s.first_name} ${s.last_name}`} title="Remove from the roll"
-                      >
-                        <Icon name="trash" className="h-4 w-4" />
-                      </button>
+                      <span onClick={(e) => e.stopPropagation()} className="inline-flex justify-end">
+                        <IconButton icon="trash" tone="danger"
+                                    label={`Remove ${s.first_name} from the roll`}
+                                    onClick={() => remove(s)} />
+                      </span>
                     </td>
                   </tr>
                 ))}
