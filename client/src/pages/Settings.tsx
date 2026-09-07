@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import PasswordInput from '../components/PasswordInput';
 import Icon from '../components/Icon';
 import RolesAndAccess from '../components/RolesAndAccess';
+import SchoolDay from '../components/SchoolDay';
 import { Avatar, Badge, Field, PageHeader, Toggle } from '../components/ui';
 
 /** A friendly spread rather than a full picker: enough to feel like yours. */
@@ -336,7 +337,9 @@ export default function Settings() {
             </div>
           </section>
 
-          {/* Who may do what, for the people who decide it. */}
+          {/* When the school stops, and who may do what: both are the school's
+              own shape rather than one person's preferences. */}
+          {user.role === 'admin' && <SchoolDay owner={!!user.is_super_admin} />}
           {user.role === 'admin' && <RolesAndAccess owner={!!user.is_super_admin} />}
 
           {isStudent ? (

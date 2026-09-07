@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db, audit } from '../db/index.js';
-import { authenticate, requireRole, canAccessStudent, teacherClassIds, teachesClass } from '../lib/auth.js';
+import { authenticate, requireRole, requireSuperAdmin, canAccessStudent, teacherClassIds, teachesClass } from '../lib/auth.js';
 import { requirePermission } from '../lib/permissions.js';
 import { isSuperAdmin } from '../lib/auth.js';
 import { IS_SEN, readSupport } from '../lib/sen.js';
@@ -1214,7 +1214,14 @@ r.get('/classes', (req, res) => {
 
   res.json(db.prepare(
     `SELECT c.*, u.first_name || ' ' || u.last_name AS homeroom_teacher,
-            (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND s.status='active') AS student_count
+            (SELECT COUNT(*) FROM students s WHERE s.class_id = c.id AND s.status='active') AS student_count,
+            -- Who stands in front of this class, and for how much of it: a
+            -- class with subjects but nobody against them is the gap worth
+            -- seeing from the page that lists classes.
+            (SELECT COUNT(DISTINCT cs.teacher_id) FROM class_subjects cs
+              WHERE cs.class_id = c.id AND cs.teacher_id IS NOT NULL) AS teacher_count,
+            (SELECT COUNT(*) FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
+              WHERE cs.class_id = c.id AND sub.is_break = 0 AND cs.teacher_id IS NULL) AS unstaffed_count
      FROM classes c LEFT JOIN users u ON u.id = c.homeroom_teacher_id
      ${scope ? `WHERE c.id IN (${scope.map(() => '?').join(',')})` : ''}
      -- Section, then year, then the order the arms were created in, which is
@@ -2261,6 +2268,186 @@ r.post('/timetable/import', requirePermission('curriculum.manage'), (req, res) =
   res.status(201).json({ rows: checked, summary: { ...summary, imported: created.length }, created, committed: true });
 });
 
+/**
+ * When the school stops, for everybody.
+ *
+ * Break is the same hour in every class's week, so it is settled once and read
+ * from here: typing it into thirty timetables is thirty chances to have Year 3
+ * at lunch while Year 4 is still in a lesson.
+ */
+function breakTimes(kind) {
+  const settings = db.prepare('SELECT * FROM school_settings WHERE id = 1').get() ?? {};
+  return kind === 'long'
+    ? { start_time: settings.long_break_start ?? '12:00', end_time: settings.long_break_end ?? '12:45' }
+    : { start_time: settings.short_break_start ?? '10:00', end_time: settings.short_break_end ?? '10:20' };
+}
+
+/** A sensible day, until the school writes its own. */
+const STANDARD_PERIODS = [
+  { period: 1, start: '08:30', end: '09:15' }, { period: 2, start: '09:15', end: '10:00' },
+  { period: 3, start: '10:20', end: '11:05' }, { period: 4, start: '11:05', end: '11:50' },
+  { period: 5, start: '12:40', end: '13:25' }, { period: 6, start: '13:25', end: '14:10' },
+  { period: 7, start: '14:20', end: '15:05' }, { period: 8, start: '15:05', end: '15:50' },
+];
+
+/** When each period runs, as the school has it. */
+function periodLadder() {
+  const row = db.prepare('SELECT period_times FROM school_settings WHERE id = 1').get();
+  try {
+    const saved = JSON.parse(row?.period_times ?? 'null');
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch { /* a ladder that will not parse is no ladder */ }
+  return STANDARD_PERIODS;
+}
+
+const timesForPeriod = (period) =>
+  periodLadder().find((p) => Number(p.period) === Number(period));
+
+/** The school day as it is set, read by anyone building a week. */
+r.get('/school/day', requireRole('admin', 'teacher'), (_req, res) => {
+  const s = db.prepare('SELECT * FROM school_settings WHERE id = 1').get() ?? {};
+  res.json({
+    short_break_start: s.short_break_start ?? '10:00',
+    short_break_end: s.short_break_end ?? '10:20',
+    long_break_start: s.long_break_start ?? '12:00',
+    long_break_end: s.long_break_end ?? '12:45',
+    short_break_period: s.short_break_period ?? null,
+    long_break_period: s.long_break_period ?? null,
+    periods: periodLadder(),
+  });
+});
+
+/**
+ * Puts the school's breaks into every class's week.
+ *
+ * A break is not a decision each timetable makes: the school stops at the same
+ * hour everywhere, so once the office says which period that is, every class
+ * has it. A period already holding a lesson is left alone and counted, because
+ * moving somebody's lesson to make room is a decision, not a consequence.
+ */
+function fillBreaks({ shortPeriod, longPeriod, times }) {
+  const classes = db.prepare('SELECT id FROM classes').all();
+  const insert = db.prepare(
+    `INSERT INTO timetable_slots (class_subject_id, day_of_week, period, start_time, end_time, room)
+     VALUES (?, ?, ?, ?, ?, NULL)`
+  );
+  const busy = db.prepare(
+    `SELECT 1 FROM timetable_slots ts JOIN class_subjects cs ON cs.id = ts.class_subject_id
+     WHERE cs.class_id = ? AND ts.day_of_week = ? AND ts.period = ?`
+  );
+
+  let placed = 0;
+  let blocked = 0;
+  for (const klass of classes) {
+    for (const [kind, period] of [['short', shortPeriod], ['long', longPeriod]]) {
+      if (!period) continue;
+      const pairing = breakPairing(klass.id, kind);
+      const hour = kind === 'long'
+        ? { start: times.long_break_start, end: times.long_break_end }
+        : { start: times.short_break_start, end: times.short_break_end };
+
+      for (const weekday of [1, 2, 3, 4, 5]) {
+        if (busy.get(klass.id, weekday, period)) { blocked += 1; continue; }
+        insert.run(pairing.id, weekday, period, hour.start, hour.end);
+        placed += 1;
+      }
+    }
+  }
+  return { placed, blocked };
+}
+
+/**
+ * Changing when the school stops.
+ *
+ * The head's decision rather than the office's: moving lunch moves it for every
+ * class at once, including the ones already timetabled around it, which is why
+ * the breaks already on a week are moved with it. A school that changed lunch
+ * and left last term's lunches where they were would have two lunches.
+ */
+r.put('/school/day', requireSuperAdmin, (req, res) => {
+  const b = req.body ?? {};
+  const fields = ['short_break_start', 'short_break_end', 'long_break_start', 'long_break_end'];
+  const times = {};
+  for (const f of fields) {
+    const value = String(b[f] ?? '').trim();
+    if (!/^\d{2}:\d{2}$/.test(value)) return res.status(400).json({ error: 'Times look like 10:20' });
+    times[f] = value;
+  }
+  if (times.short_break_end <= times.short_break_start || times.long_break_end <= times.long_break_start) {
+    return res.status(400).json({ error: 'A break has to end after it starts' });
+  }
+
+  // The ladder, if the school is setting it: every period has to be an hour
+  // that ends after it starts, or a week built on it means nothing.
+  let ladder = null;
+  if (Array.isArray(b.periods)) {
+    ladder = b.periods.map((p) => ({
+      period: Number(p.period),
+      start: String(p.start ?? '').trim(),
+      end: String(p.end ?? '').trim(),
+    }));
+    const wrong = ladder.find((p) => !(p.period >= 1 && p.period <= 12)
+      || !/^\d{2}:\d{2}$/.test(p.start) || !/^\d{2}:\d{2}$/.test(p.end) || p.end <= p.start);
+    if (wrong) {
+      return res.status(400).json({
+        error: `Period ${wrong.period || '?'} needs an hour that ends after it starts`,
+      });
+    }
+    ladder.sort((a, z) => a.period - z.period);
+  }
+
+  const prev = db.prepare('SELECT * FROM school_settings WHERE id = 1').get();
+  db.prepare(
+    `UPDATE school_settings SET short_break_start = ?, short_break_end = ?,
+            long_break_start = ?, long_break_end = ?${ladder ? ', period_times = ?' : ''} WHERE id = 1`
+  ).run(times.short_break_start, times.short_break_end, times.long_break_start, times.long_break_end,
+        ...(ladder ? [JSON.stringify(ladder)] : []));
+
+  // A lesson sits in a period, so moving the period moves the lesson: a week
+  // keeping last term's hours in a school that changed them sends a class to a
+  // room nobody else thinks is in use.
+  let lessonsMoved = 0;
+  for (const p of ladder ?? []) {
+    lessonsMoved += db.prepare(
+      `UPDATE timetable_slots SET start_time = ?, end_time = ?
+       WHERE period = ? AND (start_time != ? OR end_time != ?)
+         AND class_subject_id NOT IN (
+           SELECT cs.id FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
+           WHERE sub.is_break = 1)`
+    ).run(p.start, p.end, p.period, p.start, p.end).changes;
+  }
+
+  const moveBreak = (name, start, end) => db.prepare(
+    `UPDATE timetable_slots SET start_time = ?, end_time = ?
+     WHERE class_subject_id IN (
+       SELECT cs.id FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
+       WHERE sub.is_break = 1 AND lower(sub.name) = ?)`
+  ).run(start, end, name).changes;
+
+  const moved = moveBreak('short break', times.short_break_start, times.short_break_end)
+    + moveBreak('long break', times.long_break_start, times.long_break_end)
+    + lessonsMoved;
+
+  // Which period each break sits in, and every class's week filled with it.
+  const shortPeriod = b.short_break_period ? Number(b.short_break_period) : null;
+  const longPeriod = b.long_break_period ? Number(b.long_break_period) : null;
+  db.prepare('UPDATE school_settings SET short_break_period = ?, long_break_period = ? WHERE id = 1')
+    .run(shortPeriod, longPeriod);
+  const filled = fillBreaks({ shortPeriod, longPeriod, times });
+
+  audit({ user: req.user, action: 'update', entity: 'school_settings', entityId: 1,
+          prev: { short_break_start: prev?.short_break_start, short_break_end: prev?.short_break_end,
+                  long_break_start: prev?.long_break_start, long_break_end: prev?.long_break_end },
+          next: { ...times, lessons_moved: moved }, ip: req.ip });
+
+  res.json({
+    ...times,
+    short_break_period: shortPeriod, long_break_period: longPeriod,
+    periods: ladder ?? periodLadder(),
+    moved, placed: filled.placed, blocked: filled.blocked,
+  });
+});
+
 /** The parts of the day that are not taught, offered on every timetable. */
 const BREAKS = {
   short: { name: 'Short break', code: 'BREAK', colour: '#94a3b8', icon: 'clock' },
@@ -2381,17 +2568,45 @@ r.post('/timetable', requirePermission('curriculum.manage'), (req, res) => {
     if (!pairing) return res.status(400).json({ error: 'That subject is not one this school teaches' });
     b.class_subject_id = pairing.id;
   }
+  // Break is when the school says it is, so nobody times it here — and neither
+  // is a lesson: a period is an hour of the school's day, the same in every
+  // class's week.
+  if (b.break_kind) Object.assign(b, breakTimes(b.break_kind));
+  else if (!b.start_time || !b.end_time) {
+    const hour = timesForPeriod(b.period);
+    if (hour) Object.assign(b, { start_time: hour.start, end_time: hour.end });
+  }
   const plan = planLesson(b);
   if (plan.error) return res.status(plan.conflict ? 409 : 400).json({ error: plan.error });
 
-  const out = db.prepare(
+  const insert = db.prepare(
     'INSERT INTO timetable_slots (class_subject_id, day_of_week, period, start_time, end_time, room) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(plan.cs.id, plan.day, plan.period, plan.start_time, plan.end_time, plan.room);
+  );
+  const out = insert.run(plan.cs.id, plan.day, plan.period, plan.start_time, plan.end_time, plan.room);
+
+  // A break is every day of the week at the same hour: placing it on Monday and
+  // leaving Tuesday to be remembered is how one class ends up in a lesson while
+  // the rest of the school is at lunch. A day already holding something is left
+  // alone rather than argued with.
+  let alsoPlaced = 0;
+  if (b.break_kind && b.every_day !== false) {
+    for (const weekday of [1, 2, 3, 4, 5]) {
+      if (weekday === plan.day) continue;
+      const check = planLesson({ ...b, day_of_week: weekday, period: plan.period });
+      if (check.error) continue;
+      insert.run(check.cs.id, weekday, check.period, check.start_time, check.end_time, check.room);
+      alsoPlaced += 1;
+    }
+  }
 
   audit({ user: req.user, action: 'create', entity: 'timetable_slots', entityId: out.lastInsertRowid,
-          next: { class: plan.cs.class_name, subject: plan.cs.subject, day: plan.day, period: plan.period },
+          next: { class: plan.cs.class_name, subject: plan.cs.subject, day: plan.day,
+                  period: plan.period, also_placed: alsoPlaced },
           ip: req.ip });
-  res.status(201).json(db.prepare('SELECT * FROM timetable_slots WHERE id = ?').get(out.lastInsertRowid));
+  res.status(201).json({
+    ...db.prepare('SELECT * FROM timetable_slots WHERE id = ?').get(out.lastInsertRowid),
+    also_placed: alsoPlaced,
+  });
 });
 
 /**

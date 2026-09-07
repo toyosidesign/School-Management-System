@@ -417,6 +417,99 @@ r.get('/requests', requireRole('admin', 'teacher'), (req, res) => {
   });
 });
 
+/**
+ * The changes that can be put back, and what it takes to put one back.
+ *
+ * Only an edit, and only to a record that still exists and still looks the way
+ * the entry left it. A deletion is not here: restoring a row means restoring
+ * everything that hung off it, with the same ids, and a half-restored pupil is
+ * worse than a deliberate re-enrolment. Nor is a creation: undoing one is a
+ * deletion wearing a friendlier word.
+ *
+ * Each kind names the columns that may be written, so an entry carrying joined
+ * or computed fields cannot smuggle them into the table.
+ */
+const UNDOABLE = {
+  students: {
+    table: 'students', permission: 'students.manage', label: 'pupil',
+    columns: ['class_id', 'date_of_birth', 'gender', 'address', 'medical_notes',
+              'emergency_contact_name', 'emergency_contact_phone', 'status'],
+  },
+  classes: {
+    table: 'classes', permission: 'curriculum.manage', label: 'class',
+    columns: ['name', 'year_label', 'stream', 'section', 'level', 'academic_year',
+              'homeroom_teacher_id', 'room'],
+  },
+  subjects: {
+    table: 'subjects', permission: 'curriculum.manage', label: 'subject',
+    columns: ['name', 'category', 'colour', 'icon', 'section'],
+  },
+  sections: {
+    table: 'sections', permission: 'curriculum.manage', label: 'year group',
+    columns: ['name', 'sort_order', 'is_active'],
+  },
+  timetable_slots: {
+    table: 'timetable_slots', permission: 'curriculum.manage', label: 'lesson',
+    columns: ['class_subject_id', 'day_of_week', 'period', 'start_time', 'end_time', 'room'],
+  },
+  iep_profiles: {
+    table: 'iep_profiles', permission: 'sen.manage', label: 'support plan', key: 'student_id',
+    columns: ['needs', 'time_multiplier', 'multi_format_approved', 'scribe_allowed',
+              'rest_breaks', 'notes', 'review_date'],
+  },
+  staff: {
+    table: 'staff', permission: 'staff.manage', label: 'staff record',
+    columns: ['staff_code', 'title', 'department', 'qualifications', 'hired_on'],
+  },
+};
+
+/** What an entry would put back, or why it cannot. */
+function undoPlan(entry) {
+  const kind = UNDOABLE[entry.entity];
+  if (!kind) return { why: 'That kind of record cannot be put back from here' };
+  if (entry.action !== 'update') return { why: 'Only an edit can be undone' };
+
+  let previous;
+  try { previous = JSON.parse(entry.prev_value ?? 'null'); } catch { previous = null; }
+  if (!previous || typeof previous !== 'object') return { why: 'This entry did not record what it changed' };
+
+  const key = kind.key ?? 'id';
+  const id = previous[key] ?? entry.entity_id;
+  const row = db.prepare(`SELECT * FROM ${kind.table} WHERE ${key} = ?`).get(id);
+  if (!row) return { why: `That ${kind.label} no longer exists` };
+
+  const fields = kind.columns.filter((c) => c in previous && String(previous[c] ?? '') !== String(row[c] ?? ''));
+  if (!fields.length) return { why: 'Nothing to put back: it already reads that way' };
+
+  return { kind, key, id, row, previous, fields };
+}
+
+r.post('/audit/:id/undo', requirePermission('audit.read'), (req, res) => {
+  const entry = db.prepare('SELECT * FROM audit_logs WHERE id = ?').get(req.params.id);
+  if (!entry) return res.status(404).json({ error: 'No such entry' });
+
+  const plan = undoPlan(entry);
+  if (plan.why) return res.status(409).json({ error: plan.why });
+  if (!can(req.user, plan.kind.permission)) {
+    return res.status(403).json({ error: `Putting a ${plan.kind.label} back needs access to it` });
+  }
+
+  db.prepare(
+    `UPDATE ${plan.kind.table} SET ${plan.fields.map((f) => `${f} = ?`).join(', ')} WHERE ${plan.key} = ?`
+  ).run(...plan.fields.map((f) => plan.previous[f]), plan.id);
+
+  const after = db.prepare(`SELECT * FROM ${plan.kind.table} WHERE ${plan.key} = ?`).get(plan.id);
+
+  // The log is append-only, so putting something back is another entry rather
+  // than the removal of one: what happened stays true, including the mistake.
+  audit({
+    user: req.user, action: 'undo', entity: entry.entity, entityId: String(plan.id),
+    prev: plan.row, next: { ...after, undid_entry: entry.id }, ip: req.ip,
+  });
+
+  res.json({ ok: true, entity: entry.entity, id: plan.id, fields: plan.fields, record: after });
+});
+
 r.get('/audit', requirePermission('audit.read'), (req, res) => {
   const { entity, action, q, limit = 200 } = req.query;
   const where = ['1=1']; const args = [];
@@ -452,7 +545,11 @@ r.get('/audit', requirePermission('audit.read'), (req, res) => {
   ).all();
 
   res.json({
-    entries: rows, kinds, actions, people,
+    entries: rows.map((row) => {
+      const plan = undoPlan(row);
+      return { ...row, can_undo: !plan.why, undo_why: plan.why ?? null, undo_fields: plan.fields ?? null };
+    }),
+    kinds, actions, people,
     total: db.prepare('SELECT COUNT(*) n FROM audit_logs').get().n,
   });
 });

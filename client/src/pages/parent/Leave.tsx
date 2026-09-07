@@ -123,7 +123,7 @@ export default function ParentLeave() {
           {(user.children?.length ?? 0) > 1 && (
             <Field label="Which child?" required>
               <Select
-                value={form.student_id ?? ''}
+                value={form.student_id ? String(form.student_id) : ''}
                 onChange={(v) => setForm({ ...form, student_id: Number(v) })}
                 options={user.children.map((c: any) => ({ value: String(c.id), label: `${c.first_name} ${c.last_name} · ${c.class_name}` }))}
               />

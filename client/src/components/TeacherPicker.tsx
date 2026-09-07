@@ -61,7 +61,7 @@ export default function TeacherPicker({ target, onClose, onSaved }: {
   return (
     <Modal
       open={!!target} onClose={onClose} wide
-      title={target?.kind === 'subject' ? `Who teaches ${target.name}` : `Who works in ${target?.name ?? ''}`}
+      title={target?.kind === 'subject' ? `Who teaches ${target.name}` : `Teachers in ${target?.name ?? ''}`}
       footer={
         <>
           <button className="btn-ghost" onClick={onClose}>Cancel</button>
@@ -74,7 +74,7 @@ export default function TeacherPicker({ target, onClose, onSaved }: {
       <p className="mb-3 text-sm text-ink-soft">
         {target?.kind === 'subject'
           ? 'Where one of them teaches this subject in a class that has nobody against it, they are put there. A class that already has a teacher is left alone.'
-          : 'Naming who works here settles which of several subject teachers takes a class in this section.'}
+          : 'Naming the teachers who work in this year group settles which of several subject teachers takes each of its classes.'}
       </p>
 
       {staff.loading && <Loading rows={3} />}

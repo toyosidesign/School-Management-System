@@ -7,13 +7,28 @@ import SyncMenu from '../../components/SyncMenu';
 import TeacherPicker from '../../components/TeacherPicker';
 import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader, Toggle } from '../../components/ui';
 
-/** A few ways schools actually divide themselves, offered as a starting point. */
+/** Year 1 to Year 12, written out, for the schools that count that way. */
+const years = (label) => Array.from({ length: 12 }, (_, i) => `${label} ${i + 1}`);
+
+/**
+ * A few ways schools actually divide themselves, offered as a starting point.
+ *
+ * Each one creates the sections it names and nothing else: a school renames,
+ * reorders or deletes them afterwards, and choosing a pattern never removes
+ * what is already there.
+ */
 const PATTERNS = [
+  // Four ways of dividing a school, and nothing that is another one's subset:
+  // "Year 1 to 12" beside "Early Years, Prep, then Year 1 to 12" is the same
+  // offer twice, and reads as a mistake.
   { label: 'Nursery, Primary, Secondary', names: ['Nursery', 'Primary', 'Secondary'] },
-  { label: 'Years 1 to 12', names: ['Whole school'] },
-  { label: 'Primary, Junior and Senior Secondary',
+  { label: 'Nursery, Primary, Junior and Senior Secondary',
     names: ['Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary'] },
   { label: 'Early Years, Prep, Senior', names: ['Early Years', 'Prep', 'Senior'] },
+  { label: 'Early Years, Nursery, Prep, then Year 1 to 12',
+    names: ['Early Years', 'Nursery', 'Prep', ...years('Year')] },
+  { label: 'The same, counted in Grades',
+    names: ['Early Years', 'Nursery', 'Prep', ...years('Grade')] },
 ];
 
 /**
@@ -155,7 +170,12 @@ export default function AdminSections() {
       const existing = new Set(sections.map((s) => s.name.toLowerCase()));
       const missing = names.filter((n) => !existing.has(n.toLowerCase()));
       for (const n of missing) await api.post('/sections', { name: n });
-      toast(missing.length ? `Added ${missing.join(', ')}.` : 'You already have those.');
+      // Fifteen names is a sentence nobody reads; the count is the answer.
+      toast(missing.length
+        ? missing.length > 4
+          ? `Added ${missing.length} year groups, ${missing[0]} to ${missing[missing.length - 1]}.`
+          : `Added ${missing.join(', ')}.`
+        : 'You already have those.');
       reload();
     } catch (err: any) {
       toast(err.message, 'error');
@@ -230,9 +250,11 @@ export default function AdminSections() {
                   className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 transition-colors hover:text-brand-800"
                 >
                   <Icon name="users" className="h-3.5 w-3.5" />
+                  {/* Counted, not recited: eleven names across a row say less
+                      than the number does, and push everything else off it. */}
                   {section.teachers?.length
-                    ? section.teachers.map((t: any) => t.name).join(', ')
-                    : 'No staff named'}
+                    ? `${section.teachers.length} teacher${section.teachers.length === 1 ? '' : 's'}`
+                    : 'No teachers named'}
                 </button>
               </span>
 

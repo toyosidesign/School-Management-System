@@ -542,6 +542,20 @@ CREATE TABLE IF NOT EXISTS school_settings (
   logo_url          TEXT,                  -- uploaded file, falls back to the monogram
   monogram          TEXT NOT NULL DEFAULT 'S',
   favicon_emoji     TEXT NOT NULL DEFAULT '🎓',
+  -- Break is at the same hour every day for the whole school, so it is settled
+  -- once here rather than typed into every class's week.
+  short_break_start TEXT NOT NULL DEFAULT '10:00',
+  short_break_end   TEXT NOT NULL DEFAULT '10:20',
+  long_break_start  TEXT NOT NULL DEFAULT '12:00',
+  long_break_end    TEXT NOT NULL DEFAULT '12:45',
+  -- When each period of the day runs, as JSON [{period,start,end}]. The whole
+  -- school shares one ladder: a period is an hour of the day, not a number a
+  -- timetable happens to use.
+  period_times      TEXT,
+  -- Which period of the day each break occupies. Set them and every class's
+  -- week gets its breaks: they are the school's, not each timetable's.
+  short_break_period INTEGER,
+  long_break_period  INTEGER,
   favicon_url       TEXT,                  -- uploaded tab icon, takes precedence over the emoji
   brand_primary     TEXT NOT NULL DEFAULT '#2563eb',
   brand_accent      TEXT NOT NULL DEFAULT '#7c3aed',

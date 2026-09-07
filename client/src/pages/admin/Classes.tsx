@@ -361,6 +361,11 @@ export default function AdminClasses() {
                 <Badge tone="brand" icon="users">
                   {group.classes.reduce((n: number, c: any) => n + c.student_count, 0)} pupils
                 </Badge>
+                {group.classes.some((c: any) => c.unstaffed_count > 0) && (
+                  <Badge tone="amber" icon="warning">
+                    {group.classes.reduce((n: number, c: any) => n + (c.unstaffed_count ?? 0), 0)} subjects with no teacher
+                  </Badge>
+                )}
               </div>
 
               <span className="flex shrink-0 items-center gap-1">
@@ -400,8 +405,14 @@ export default function AdminClasses() {
                     }`}>
                       {c.room ?? c.name}
                     </span>
-                    <span className="text-xs text-ink-soft">
-                      {c.student_count} pupil{c.student_count === 1 ? '' : 's'}
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs text-ink-soft">
+                        {c.student_count} pupil{c.student_count === 1 ? '' : 's'}
+                      </span>
+                      <span className="block truncate text-[11px] text-ink-faint">
+                        {c.homeroom_teacher ?? 'No homeroom teacher'}
+                        {c.unstaffed_count > 0 && ` · ${c.unstaffed_count} subject${c.unstaffed_count === 1 ? '' : 's'} unstaffed`}
+                      </span>
                     </span>
                     <Icon name="chevronDown"
                           className={`h-3.5 w-3.5 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -491,7 +502,7 @@ export default function AdminClasses() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-ink">{row.name}</p>
                       <Select className="mt-1 !min-h-0 !py-1 !text-xs"
-                        value={row.teacher_id ?? ''}
+                        value={row.teacher_id ? String(row.teacher_id) : ''}
                         onChange={(v) => setTeacher(row.id, v)}
                         options={[{ value: "", label: `No teacher assigned` }, ...teachers.map((t: any) => ({ value: String(t.user_id), label: `${t.first_name} ${t.last_name}` }))]}
                       />
@@ -527,7 +538,7 @@ export default function AdminClasses() {
               <label className="flex items-center gap-2 text-xs text-ink-soft">
                 Homeroom
                 <Select className="!min-h-0 !w-auto !py-1 !text-xs"
-                  value={selected.homeroom_teacher_id ?? ''}
+                  value={selected.homeroom_teacher_id ? String(selected.homeroom_teacher_id) : ''}
                   onChange={(v) => setHomeroom(selected, v)}
                   options={[
                     { value: '', label: 'Unassigned' },

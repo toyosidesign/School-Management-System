@@ -14,12 +14,6 @@ import { Badge, EmptyState, ErrorNote, Field, Loading, Modal, PageHeader } from 
 const DAYS = [1, 2, 3, 4, 5];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
 
-/** A sensible hour for each period, until the school sets its own. */
-const DEFAULT_TIMES: Record<number, [string, string]> = {
-  1: ['08:30', '09:15'], 2: ['09:15', '10:00'], 3: ['10:20', '11:05'], 4: ['11:05', '11:50'],
-  5: ['12:40', '13:25'], 6: ['13:25', '14:10'], 7: ['14:20', '15:05'], 8: ['15:05', '15:50'],
-};
-
 /**
  * Building the week for one class.
  *
@@ -38,12 +32,16 @@ export default function AdminTimetable() {
 
   const taught = useFetch<any[]>(classId ? `/classes/${classId}/subjects` : null, [classId]);
   const curriculum = useFetch<any[]>('/subjects');
+  // Break is the school's hour, not this week's: shown on the card so nobody
+  // wonders what time they are dropping.
+  const schoolDay = useFetch<any>('/school/day');
   const slots = useFetch<any[]>(classId ? `/timetable?classId=${classId}` : null, [classId]);
 
   const [adding, setAdding] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [dragging, setDragging] = useState<any>(null);
+  const [dropping, setDropping] = useState<any>(null);
   const [over, setOver] = useState('');
 
   /**
@@ -60,18 +58,16 @@ export default function AdminTimetable() {
    * times, so it is copied instead: holding Alt while dragging leaves the
    * original where it is, and the copy takes the hour of wherever it lands.
    */
-  const copyTo = async (slot: any, day: number, period: number) => {
-    const standard = DEFAULT_TIMES[period];
+  const copyTo = async (slot: any, weekday: number, period: number) => {
     try {
+      // No times: the period it lands in decides them, school-wide.
       await api.post('/timetable', {
         class_subject_id: slot.class_subject_id,
-        day_of_week: day,
+        day_of_week: weekday,
         period,
-        start_time: standard?.[0] ?? slot.start_time,
-        end_time: standard?.[1] ?? slot.end_time,
         room: slot.room || null,
       });
-      toast(`${slot.subject} also on ${DAY_NAMES[day]}, period ${period}.`);
+      toast(`${slot.subject} also on ${DAY_NAMES[weekday]}, period ${period}.`);
       slots.reload();
       taught.reload();
     } catch (err: any) {
@@ -92,6 +88,36 @@ export default function AdminTimetable() {
     await copyTo(slot, free[0], free[1]);
   };
 
+  /**
+   * A subject dropped onto an empty period.
+   *
+   * The week is laid out by picking a subject up and putting it where it meets,
+   * which is how it is done on paper: the alternative is opening a dialog for
+   * every one of thirty lessons and choosing the same subject from a list.
+   */
+  const place = async (item: any, weekday: number, period: number) => {
+    try {
+      const out = await api.post('/timetable', {
+        day_of_week: weekday,
+        period,
+        room: klass?.room ?? null,
+        ...(item.break_kind
+          ? { break_kind: item.break_kind, class_id: Number(classId) }
+          : item.class_subject_id
+            ? { class_subject_id: item.class_subject_id }
+            : { subject_id: item.subject_id, class_id: Number(classId) }),
+      });
+      // A break lands on the whole week at once, so say what actually happened.
+      toast(out?.also_placed
+        ? `${item.name} placed on ${out.also_placed + 1} days in period ${period}.`
+        : `${item.name} on ${DAY_NAMES[weekday]}, period ${period}.`);
+      slots.reload();
+      taught.reload();
+    } catch (err: any) {
+      toast(err.message, 'error');
+    }
+  };
+
   /** Two lessons change places: what dropping one onto another means. */
   const swap = async (a: any, b: any) => {
     if (a.id === b.id) return;
@@ -106,11 +132,15 @@ export default function AdminTimetable() {
 
   const move = async (slot: any, day: number, period: number) => {
     if (slot.day_of_week === day && slot.period === period) return;
-    const standard = DEFAULT_TIMES[slot.period];
-    const custom = !standard || slot.start_time !== standard[0] || slot.end_time !== standard[1];
-    const times = custom || !DEFAULT_TIMES[period]
+    const ladder: any[] = schoolDay.data?.periods ?? [];
+    const was = ladder.find((p) => p.period === slot.period);
+    const lands = ladder.find((p) => p.period === period);
+    // A lesson keeps an hour somebody set by hand; otherwise it takes the hour
+    // of the period it lands in.
+    const custom = !was || slot.start_time !== was.start || slot.end_time !== was.end;
+    const times = custom || !lands
       ? { start_time: slot.start_time, end_time: slot.end_time }
-      : { start_time: DEFAULT_TIMES[period][0], end_time: DEFAULT_TIMES[period][1] };
+      : { start_time: lands.start, end_time: lands.end };
 
     try {
       await api.patch(`/timetable/${slot.id}`, { day_of_week: day, period, ...times });
@@ -139,6 +169,31 @@ export default function AdminTimetable() {
     (sub.sections ?? [sub.section]).includes(klass?.section)
     && !(taught.data ?? []).some((row: any) => row.subject_id === sub.id));
 
+  /**
+   * The hour each row runs at, taken from the week itself.
+   *
+   * A period is whatever the lessons in it say it is: a row holding the long
+   * break reads 12:00–12:45 because that is when the school stops, not because
+   * a ladder written in this file happens to agree. Only an empty row falls
+   * back to the standard hour, and only to suggest one.
+   */
+  /**
+   * The hour each row runs at, which is the school's, not this page's.
+   *
+   * A period is an hour of the school day — the same one in every class's week
+   * — so it is read from the school day rather than from a ladder written here.
+   * A break in the row still speaks for itself: it is the one thing that does
+   * not run for the length of a period.
+   */
+  const rowTimes = useMemo(() => {
+    const found: Record<number, string> = {};
+    for (const p of schoolDay.data?.periods ?? []) found[p.period] = `${p.start}–${p.end}`;
+    for (const slot of slots.data ?? []) {
+      if (slot.is_break) found[slot.period] = `${slot.start_time}–${slot.end_time}`;
+    }
+    return found;
+  }, [slots.data, schoolDay.data]);
+
   const grid = useMemo(() => {
     const map: Record<string, any> = {};
     for (const slot of slots.data ?? []) map[`${slot.day_of_week}-${slot.period}`] = slot;
@@ -166,10 +221,14 @@ export default function AdminTimetable() {
       };
       // Editing moves the lesson that is already there rather than replacing
       // it, so whatever has been recorded against it stays attached.
-      if (adding.id) await api.patch(`/timetable/${adding.id}`, body);
-      else await api.post('/timetable', body);
+      const saved = adding.id
+        ? await api.patch(`/timetable/${adding.id}`, body)
+        : await api.post('/timetable', body);
       toast(adding.id ? 'Timetable updated.'
-            : chosen.startsWith('break:') ? 'Break added.'
+            : chosen.startsWith('break:')
+              ? saved?.also_placed
+                ? `Break placed on ${saved.also_placed + 1} days.`
+                : 'Break added.'
             : chosen.startsWith('subject:') ? 'Lesson added, and the class now takes that subject.'
             : 'Lesson added.');
       setAdding(null);
@@ -202,7 +261,7 @@ export default function AdminTimetable() {
     <>
       <PageHeader
         icon="calendar" title="Timetable"
-        subtitle="The week for one class. Drag a lesson to move it, hold Alt to copy it, drop it on another lesson to swap the two, or click it to change the details."
+        subtitle="The week for one class. Drag a subject from below into a free period, drag a lesson to move it, hold Alt to copy it, drop it on another lesson to swap the two, or click one to change its details."
         actions={
           <>
             <SyncMenu onDone={() => { taught.reload(); slots.reload(); }} />
@@ -251,11 +310,80 @@ export default function AdminTimetable() {
               action={<Link to="/admin/classes" className="btn-primary">Add its subjects</Link>}
             />
           ) : (
+          <>
+          <section className="mb-4 card p-4">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-ink-soft">
+              Subjects to place
+            </h2>
+            <p className="mt-1 text-xs text-ink-faint">
+              Drag one into the week. The number is how many times it already meets; a subject showing
+              none is taught to this class but never meets.
+            </p>
+
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {(taught.data ?? []).map((row: any) => (
+                <li key={row.id}>
+                  <span
+                    draggable
+                    onDragStart={() => setDropping({
+                      class_subject_id: row.id, name: row.name, colour: row.colour, icon: row.icon,
+                    })}
+                    onDragEnd={() => { setDropping(null); setOver(''); }}
+                    className={`flex cursor-grab items-center gap-2 rounded-xl border border-line px-3 py-2 transition active:cursor-grabbing hover:border-brand-300 ${
+                      dropping?.class_subject_id === row.id ? 'opacity-40' : ''}`}
+                  >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: row.colour }} />
+                    <span className="text-sm font-semibold text-ink">{row.name}</span>
+                    <span className={`text-xs ${row.lessons_per_week ? 'text-ink-faint' : 'text-amber-700'}`}>
+                      {row.lessons_per_week}/week
+                    </span>
+                  </span>
+                </li>
+              ))}
+
+              {/* Subjects the year takes that this class has not, and the two
+                  breaks: everything that can go on a week, in one tray. */}
+              {offered.map((sub: any) => (
+                <li key={`offer-${sub.id}`}>
+                  <span
+                    draggable
+                    onDragStart={() => setDropping({ subject_id: sub.id, name: sub.name })}
+                    onDragEnd={() => { setDropping(null); setOver(''); }}
+                    className="flex cursor-grab items-center gap-2 rounded-xl border border-dashed border-line px-3 py-2 text-ink-soft transition active:cursor-grabbing hover:border-brand-300 hover:text-ink"
+                  >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: sub.colour }} />
+                    <span className="text-sm font-semibold">{sub.name}</span>
+                    <span className="text-xs text-ink-faint">adds it to the class</span>
+                  </span>
+                </li>
+              ))}
+
+              {[
+                { break_kind: 'short', name: 'Short break',
+                  when: schoolDay.data && `${schoolDay.data.short_break_start}–${schoolDay.data.short_break_end}` },
+                { break_kind: 'long', name: 'Long break',
+                  when: schoolDay.data && `${schoolDay.data.long_break_start}–${schoolDay.data.long_break_end}` },
+              ].map((item) => (
+                <li key={item.break_kind}>
+                  <span
+                    draggable
+                    onDragStart={() => setDropping(item)}
+                    onDragEnd={() => { setDropping(null); setOver(''); }}
+                    className="flex cursor-grab items-center gap-2 rounded-xl border border-line bg-[color:var(--surface-sunken)] px-3 py-2 transition active:cursor-grabbing hover:border-brand-300"
+                  >
+                    <Icon name="clock" className="h-3.5 w-3.5 text-ink-faint" />
+                    <span className="text-sm font-semibold text-ink-soft">{item.name}</span>
+                    {item.when && <span className="font-mono text-[11px] text-ink-faint">{item.when}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
             <div className="card overflow-x-auto p-0">
               <table className="w-full min-w-[44rem] border-collapse">
                 <thead>
                   <tr>
-                    <th className="w-16 border-b border-line px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-ink-faint">
+                    <th className="w-24 border-b border-line px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-ink-faint">
                       Period
                     </th>
                     {DAYS.map((day) => (
@@ -271,8 +399,8 @@ export default function AdminTimetable() {
                     <tr key={period}>
                       <th className="border-b border-line px-2 py-1.5 text-left align-top">
                         <span className="block text-sm font-bold tabular-nums text-ink">{period}</span>
-                        <span className="block font-mono text-[10px] text-ink-faint">
-                          {DEFAULT_TIMES[period]?.[0]}
+                        <span className="block whitespace-nowrap font-mono text-[10px] text-ink-faint">
+                          {rowTimes[period] ?? '—'}
                         </span>
                       </th>
 
@@ -354,7 +482,7 @@ export default function AdminTimetable() {
                         return (
                           <td
                             key={day}
-                            onDragOver={(e) => { if (dragging) { e.preventDefault(); setOver(`${day}-${period}`); } }}
+                            onDragOver={(e) => { if (dragging || dropping) { e.preventDefault(); setOver(`${day}-${period}`); } }}
                             onDragLeave={() => setOver((k) => (k === `${day}-${period}` ? '' : k))}
                             onDrop={(e) => {
                               e.preventDefault();
@@ -362,7 +490,9 @@ export default function AdminTimetable() {
                               // Alt copies, as it does everywhere else a thing
                               // is dragged; without it the lesson moves.
                               if (dragging) (e.altKey ? copyTo : move)(dragging, day, period);
+                              else if (dropping) place(dropping, day, period);
                               setDragging(null);
+                              setDropping(null);
                             }}
                             className={`h-full border-b border-l border-line align-top transition-colors ${
                               over === `${day}-${period}` ? 'bg-brand-50' : ''}`}
@@ -371,8 +501,8 @@ export default function AdminTimetable() {
                               onClick={() => setAdding({
                                 day, period,
                                 class_subject_id: String(taught.data?.[0]?.id ?? ''),
-                                start_time: DEFAULT_TIMES[period]?.[0] ?? '09:00',
-                                end_time: DEFAULT_TIMES[period]?.[1] ?? '09:45',
+                                start_time: (schoolDay.data?.periods ?? []).find((p: any) => p.period === period)?.start ?? '09:00',
+                                end_time: (schoolDay.data?.periods ?? []).find((p: any) => p.period === period)?.end ?? '09:45',
                                 room: klass?.room ?? '',
                               })}
                               aria-label={`Add a lesson on ${DAY_NAMES[day]}, period ${period}`}
@@ -388,27 +518,9 @@ export default function AdminTimetable() {
                 </tbody>
               </table>
             </div>
+          </>
           )}
 
-          {(taught.data ?? []).length > 0 && (
-            <section className="mt-5 card p-4">
-              <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-soft">
-                Lessons a week
-              </h2>
-              <ul className="flex flex-wrap gap-2">
-                {(taught.data ?? []).map((row: any) => (
-                  <li key={row.id}>
-                    <Badge tone={row.lessons_per_week ? 'brand' : 'amber'}>
-                      {row.name}: {row.lessons_per_week}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-ink-faint">
-                A subject with none is taught to this class but never meets.
-              </p>
-            </section>
-          )}
         </>
       )}
 
@@ -462,6 +574,15 @@ export default function AdminTimetable() {
                 ]}
               />
             </Field>
+
+            {String(adding.class_subject_id).startsWith('break:') && schoolDay.data && (
+              <p className="rounded-xl border border-line bg-[color:var(--surface-sunken)] px-3 py-2.5 text-sm text-ink-soft">
+                Break runs {String(adding.class_subject_id) === 'break:long'
+                  ? `${schoolDay.data.long_break_start} to ${schoolDay.data.long_break_end}`
+                  : `${schoolDay.data.short_break_start} to ${schoolDay.data.short_break_end}`} for the whole school.
+                It is set once in Settings, not here.
+              </p>
+            )}
 
             {adding.id && (
               <div className="grid gap-3 sm:grid-cols-2">

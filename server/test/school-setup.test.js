@@ -689,6 +689,113 @@ describe('importing a week', () => {
   });
 });
 
+describe('when the school stops', () => {
+  it('is set once and applies to every break already on a week', async () => {
+    const klass = (await ctx.api('GET', '/api/classes', { token: admin })).body[0];
+    const week = (await ctx.api('GET', `/api/timetable?classId=${klass.id}`, { token: admin })).body;
+    const taken = new Set(week.map((s) => `${s.day_of_week}-${s.period}`));
+    const free = [1, 2, 3, 4, 5].flatMap((d) => [1, 2, 3, 4, 5, 6, 7, 8].map((p) => [d, p]))
+      .find(([d, p]) => !taken.has(`${d}-${p}`));
+
+    // Placed without a time: the school's is the only one that matters.
+    const made = await post('/api/timetable', {
+      class_id: klass.id, break_kind: 'long', day_of_week: free[0], period: free[1],
+    });
+    assert.equal(made.status, 201, made.body.error);
+
+    const day = (await ctx.api('GET', '/api/school/day', { token: admin })).body;
+    assert.equal(made.body.start_time, day.long_break_start);
+    assert.equal(made.body.end_time, day.long_break_end);
+
+    // Moving lunch moves the ones already timetabled around it.
+    const moved = await ctx.api('PUT', '/api/school/day', {
+      token: admin,
+      body: { short_break_start: '10:30', short_break_end: '10:50',
+              long_break_start: '12:30', long_break_end: '13:15' },
+    });
+    assert.equal(moved.status, 200, moved.body.error);
+    assert.ok(moved.body.moved >= 1, 'the breaks already placed came with it');
+
+    const after = (await ctx.api('GET', `/api/timetable?classId=${klass.id}`, { token: admin })).body
+      .find((s) => s.id === made.body.id);
+    assert.equal(after.start_time, '12:30');
+    assert.equal(after.end_time, '13:15');
+  });
+
+  it('refuses a time that is not one, or a break that ends before it starts', async () => {
+    for (const body of [
+      { short_break_start: 'elevenish', short_break_end: '10:50', long_break_start: '12:30', long_break_end: '13:15' },
+      { short_break_start: '10:50', short_break_end: '10:30', long_break_start: '12:30', long_break_end: '13:15' },
+    ]) {
+      const refused = await ctx.api('PUT', '/api/school/day', { token: admin, body });
+      assert.equal(refused.status, 400);
+    }
+  });
+
+  it('is the head\'s to set, not the office\'s', async () => {
+    assert.equal((await ctx.api('PUT', '/api/school/day', {
+      token: teacher,
+      body: { short_break_start: '10:00', short_break_end: '10:20',
+              long_break_start: '12:00', long_break_end: '12:45' },
+    })).status, 403);
+  });
+});
+
+describe('putting a change back', () => {
+  it('undoes an edit, and says so in the log rather than erasing it', async () => {
+    const subject = (await ctx.api('GET', '/api/subjects', { token: admin })).body[0];
+    const was = subject.name;
+
+    await ctx.api('PATCH', `/api/subjects/${subject.id}`, { token: admin, body: { name: 'Renamed By Mistake' } });
+    const renamed = (await ctx.api('GET', '/api/subjects', { token: admin })).body
+      .find((s) => s.id === subject.id);
+    assert.equal(renamed.name, 'Renamed By Mistake');
+
+    const log = (await ctx.api('GET', '/api/audit?entity=subjects', { token: admin })).body;
+    const entry = log.entries.find((a) => a.action === 'update' && String(a.entity_id) === String(subject.id));
+    assert.ok(entry, 'the edit was recorded');
+    assert.equal(entry.can_undo, true);
+
+    const undone = await post(`/api/audit/${entry.id}/undo`, {});
+    assert.equal(undone.status, 200, undone.body.error);
+    assert.ok(undone.body.fields.includes('name'));
+
+    const back = (await ctx.api('GET', '/api/subjects', { token: admin })).body
+      .find((s) => s.id === subject.id);
+    assert.equal(back.name, was, 'the subject reads as it did before');
+
+    // The log keeps both: what happened stays true, including the mistake.
+    const after = (await ctx.api('GET', '/api/audit?entity=subjects', { token: admin })).body;
+    assert.ok(after.entries.some((a) => a.action === 'undo'));
+    assert.ok(after.entries.some((a) => a.id === entry.id), 'the original entry is still there');
+  });
+
+  it('refuses to put back what it cannot put back', async () => {
+    const log = (await ctx.api('GET', '/api/audit', { token: admin })).body;
+
+    const created = log.entries.find((a) => a.action === 'create');
+    if (created) {
+      const refused = await post(`/api/audit/${created.id}/undo`, {});
+      assert.equal(refused.status, 409);
+      assert.match(refused.body.error, /only an edit|cannot be put back/i);
+    }
+
+    const deleted = log.entries.find((a) => a.action === 'delete');
+    if (deleted) {
+      assert.equal((await post(`/api/audit/${deleted.id}/undo`, {})).status, 409);
+    }
+
+    assert.equal((await post('/api/audit/999999/undo', {})).status, 404);
+  });
+
+  it('needs access to the record, not just to the log', async () => {
+    const log = (await ctx.api('GET', '/api/audit', { token: admin })).body;
+    const undoable = log.entries.find((a) => a.can_undo);
+    if (!undoable) return;
+    assert.equal((await post(`/api/audit/${undoable.id}/undo`, {}, teacher)).status, 403);
+  });
+});
+
 describe('what a role may do, as the school decides it', () => {
   const matrix = async (token = admin) => (await ctx.api('GET', '/api/permissions', { token })).body;
 

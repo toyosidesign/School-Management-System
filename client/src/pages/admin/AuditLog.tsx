@@ -4,7 +4,10 @@ import { qs } from '../../lib/api';
 import { dateTime, relative } from '../../lib/format';
 import Icon from '../../components/Icon';
 import Select from '../../components/Select';
-import { Badge, EmptyState, ErrorNote, Loading, PageHeader, Pagination, TableCard } from '../../components/ui';
+import IconButton from '../../components/IconButton';
+import { api } from '../../lib/api';
+import { useToast } from '../../context/ToastContext';
+import { Badge, EmptyState, ErrorNote, Loading, Modal, PageHeader, Pagination, TableCard } from '../../components/ui';
 
 const ACTION_TONE: Record<string, any> = {
   login: 'slate', login_code: 'slate', create: 'green', update: 'brand', delete: 'red',
@@ -42,6 +45,9 @@ export default function AuditLog() {
   const [days, setDays] = useState('');
   const [who, setWho] = useState('');
   const [shown, setShown] = useState<number | null>(null);
+  const [undoing, setUndoing] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
 
   const { data, loading, error, reload } =
     useFetch<any>(`/audit${qs({ entity, action, q, days, who, limit: 300 })}`,
@@ -59,6 +65,26 @@ export default function AuditLog() {
   // Narrowing the log starts again from the newest, not halfway down the
   // previous answer.
   useEffect(() => { setPage(1); }, [entity, action, q, days, who]);
+
+  /**
+   * Putting a change back.
+   *
+   * The log is append-only, so this adds an entry rather than removing one:
+   * what happened stays true, including the mistake.
+   */
+  const undo = async (entry: any) => {
+    setBusy(true);
+    try {
+      const out = await api.post(`/audit/${entry.id}/undo`, {});
+      toast(`Put back: ${out.fields.join(', ')}.`);
+      setUndoing(null);
+      reload();
+    } catch (err: any) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
@@ -153,7 +179,7 @@ export default function AuditLog() {
                   <th className="px-4 py-3 font-bold">Who</th>
                   <th className="px-4 py-3 font-bold">Did what</th>
                   <th className="px-4 py-3 font-bold">To which record</th>
-                  <th className="px-4 py-3 font-bold">From</th>
+                  <th className="px-4 py-3 font-bold">Put back</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -198,10 +224,24 @@ export default function AuditLog() {
                                 <code className="block break-all text-[11px] text-ink-soft">{a.new_value}</code>
                               </span>
                             )}
+                            {/* The address it came from, said where there is room
+                                to label it, rather than as a column headed "From". */}
+                            <span className="block text-[11px] text-ink-faint sm:col-span-2">
+                              {dateTime(a.created_at)}
+                              {a.ip_address && ` · from ${a.ip_address}`}
+                            </span>
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-ink-faint">{a.ip_address ?? '—'}</td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        {a.can_undo ? (
+                          <IconButton icon="refresh" tone="brand" disabled={busy}
+                                      label={`Undo this change to the ${say(a.entity).toLowerCase()}`}
+                                      onClick={() => setUndoing(a)} />
+                        ) : (
+                          <span className="text-xs text-ink-faint">{a.undo_why ?? '—'}</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -250,6 +290,33 @@ export default function AuditLog() {
           </p>
         </>
       )}
+
+      <Modal
+        open={!!undoing} onClose={() => setUndoing(null)} wide title="Put this change back"
+        footer={
+          <>
+            <button className="btn-ghost" onClick={() => setUndoing(null)}>Cancel</button>
+            <button className="btn-primary" disabled={busy} onClick={() => undo(undoing)}>
+              {busy ? 'Putting it back...' : 'Put it back'}
+            </button>
+          </>
+        }
+      >
+        {undoing && (
+          <div className="space-y-3">
+            <p className="text-sm text-ink-soft">
+              {undoing.user_label} changed {say(undoing.entity).toLowerCase()}{' '}
+              <span className="font-mono text-xs">#{undoing.entity_id}</span> {relative(undoing.created_at)}.
+              This puts {undoing.undo_fields?.length === 1 ? 'that field' : 'those fields'} back as they were:{' '}
+              <b className="text-ink">{(undoing.undo_fields ?? []).join(', ')}</b>.
+            </p>
+            <p className="rounded-xl border border-line bg-[color:var(--surface-sunken)] px-3 py-2.5 text-xs text-ink-soft">
+              Nothing is erased. The log keeps the original change and records this one beside it, so what
+              happened stays true — including the mistake.
+            </p>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

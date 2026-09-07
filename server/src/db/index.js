@@ -65,6 +65,13 @@ const ADDED_COLUMNS = [
   ['subjects', 'is_break', 'INTEGER NOT NULL DEFAULT 0'],
   ['users', 'is_super_admin', 'INTEGER NOT NULL DEFAULT 0'],
   ['admissions_enquiries', 'read_at', 'TEXT'],
+  ['school_settings', 'short_break_start', "TEXT NOT NULL DEFAULT '10:00'"],
+  ['school_settings', 'short_break_end', "TEXT NOT NULL DEFAULT '10:20'"],
+  ['school_settings', 'long_break_start', "TEXT NOT NULL DEFAULT '12:00'"],
+  ['school_settings', 'long_break_end', "TEXT NOT NULL DEFAULT '12:45'"],
+  ['school_settings', 'period_times', 'TEXT'],
+  ['school_settings', 'short_break_period', 'INTEGER'],
+  ['school_settings', 'long_break_period', 'INTEGER'],
 ];
 
 /**
@@ -129,6 +136,25 @@ export function migrate(connection) {
   if (!holder) {
     db.exec(`UPDATE users SET is_super_admin = 1 WHERE id = (
                SELECT id FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id LIMIT 1)`);
+  }
+
+  // Breaks placed before the school set its own hour kept whichever period they
+  // landed in, so one class went to lunch at 12:40 and another at 12:00. They
+  // are the same break for the whole school, so they are brought into line here
+  // rather than left for somebody to notice class by class.
+  const day = db.prepare('SELECT * FROM school_settings WHERE id = 1').get();
+  if (day) {
+    const align = db.prepare(
+      `UPDATE timetable_slots SET start_time = ?, end_time = ?
+       WHERE (start_time != ? OR end_time != ?)
+         AND class_subject_id IN (
+           SELECT cs.id FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
+           WHERE sub.is_break = 1 AND lower(sub.name) = ?)`
+    );
+    align.run(day.short_break_start, day.short_break_end,
+              day.short_break_start, day.short_break_end, 'short break');
+    align.run(day.long_break_start, day.long_break_end,
+              day.long_break_start, day.long_break_end, 'long break');
   }
 
   // Subjects that predate being taught in more than one section keep the one
